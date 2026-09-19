@@ -36,7 +36,6 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
             java_script_enabled=True,
             bypass_csp=True,
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-            # Esto soluciona directamente el error de las cookies de terceros
             permissions=["geolocation"],
             accept_downloads=True
         )
@@ -50,6 +49,12 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
         """)
         
         page = context.new_page()
+
+        # --- AQUÍ ESTÁ EL BLOQUEO PARA QUE VUELA LA CARGA (Bloquea imágenes, fuentes y multimedia) ---
+        page.route("**/*", lambda route: (
+            route.abort() if route.request.resource_type in ["image", "media", "font"]
+            else route.continue_()
+        ))
 
         page.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
@@ -134,7 +139,7 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
             except Exception:
                 pass
 
-            # 9. Esperar el elemento de respuesta final en el DOM
+            # 9. Esperar el elemento de respuesta final en el DOM (Con timeout de 25s)
             selector_resultado = 'label.disabled, #swal2-html-container, .swal2-popup'
             page.wait_for_selector(selector_resultado, state="visible", timeout=25000)
 
