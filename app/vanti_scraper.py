@@ -12,7 +12,6 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
         }
 
     with sync_playwright() as p:
-        # CORREGIDO: Cambiado de firefox a chromium para producción y local
         browser = p.chromium.launch(
             headless=True,
             args=[
@@ -21,17 +20,35 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
                 "--disable-dev-shm-usage",
                 "--disable-accelerated-2d-canvas",
                 "--disable-gpu",
+                "--disable-infobars",
+                "--window-size=1280,720",
+                # Bypasses clave anti-bot y de cookies
                 "--disable-blink-features=AutomationControlled",
                 "--disable-features=IsolateOrigins,site-per-process,SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure",
                 "--allow-third-party-cookies"
             ]
         )
 
+        # Contexto forzado con permisos de cookies de terceros habilitados
         context = browser.new_context(
             viewport={"width": 1280, "height": 720},
             ignore_https_errors=True,
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+            java_script_enabled=True,
+            bypass_csp=True,
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            # Esto soluciona directamente el error de las cookies de terceros
+            permissions=["geolocation"],
+            accept_downloads=True
         )
+        
+        # Inyectar comandos para ocultar totalmente el rastro de automatización
+        context.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+            Object.defineProperty(navigator, 'languages', { get: () => ['es-ES', 'es', 'en'] });
+            window.chrome = { runtime: {} };
+        """)
+        
         page = context.new_page()
 
         page.add_init_script("""
