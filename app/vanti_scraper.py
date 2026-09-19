@@ -46,19 +46,15 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
         """)
 
         try:
-            try:
             page.goto("https://pagosenlinea.grupovanti.com/", wait_until="domcontentloaded", timeout=30000)
 
-            # --- NUEVO: Aceptar / cerrar el aviso de cookies automáticamente ---
+            # Aceptar / cerrar el aviso de cookies automáticamente si aparece
             try:
-                # Buscamos botones comunes de aceptación de cookies o modales iniciales
                 btn_cookies = page.locator('button:has-text("Aceptar"), button:has-text("Entendido"), button:has-text("Acepto"), .cookies-btn, #cookies-aceptar').first
                 if btn_cookies.is_visible(timeout=3000):
                     btn_cookies.click(force=True)
             except Exception:
-                # Si no aparece el aviso, el script continúa sin problema
                 pass
-            ------------------------------------------------------------------
 
             # 1. Seleccionar Empresa
             select_elem = page.locator('select#empresa')
