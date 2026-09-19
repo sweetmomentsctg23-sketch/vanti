@@ -12,24 +12,25 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
         }
 
     with sync_playwright() as p:
-        browser = p.firefox.launch(
-    headless=True,
-    args=[
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu"
-    ]
-)
+        # CORREGIDO: Cambiado de firefox a chromium para producción y local
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-accelerated-2d-canvas",
+                "--disable-gpu",
+                "--disable-blink-features=AutomationControlled",
+                "--disable-features=IsolateOrigins,site-per-process,SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure",
+                "--allow-third-party-cookies"
+            ]
+        )
 
-        # En lugar de solo el context normal, asegúrate de pasar argumentos de preferencias si es necesario, 
-        # o configurar el contexto con las opciones de permisos y bypass de seguridad:
         context = browser.new_context(
             viewport={"width": 1280, "height": 720},
             ignore_https_errors=True,
-            java_script_enabled=True,
-            bypass_csp=True,
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0"
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         )
         page = context.new_page()
 
