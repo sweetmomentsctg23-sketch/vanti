@@ -4,9 +4,6 @@ import re
 import unicodedata
 from playwright.sync_api import sync_playwright
 
-# Directorio donde Render permite escribir datos persistentes o temporales
-USER_DATA_DIR = "/tmp/vanti_browser_profile"
-
 def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
     if not empresa or not referencia or str(empresa).strip() == "" or str(referencia).strip() == "":
         return {
@@ -15,9 +12,7 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
         }
 
     with sync_playwright() as p:
-        # Usamos launch_persistent_context para simular un navegador real con perfil propio
-        browser_context = p.chromium.launch_persistent_context(
-            user_data_dir=USER_DATA_DIR,
+        browser = p.chromium.launch(
             headless=True,
             args=[
                 "--no-sandbox",
@@ -28,13 +23,15 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
                 "--disable-blink-features=AutomationControlled",
                 "--disable-features=IsolateOrigins,site-per-process,SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure",
                 "--allow-third-party-cookies"
-            ],
+            ]
+        )
+
+        context = browser.new_context(
             viewport={"width": 1280, "height": 720},
             ignore_https_errors=True,
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         )
-
-        page = browser_context.new_page()
+        page = context.new_page()
 
         page.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
@@ -42,17 +39,29 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
         """)
 
         try:
-            page.goto("https://pagosenlinea.grupovanti.com/", wait_until="domcontentloaded", timeout=30000)
+            # 1. Entrar primero a la página principal de Vanti (clave para evitar el bloqueo)
+            page.goto("https://www.grupovanti.com/", wait_until="domcontentloaded", timeout=30000)
 
-            # Aceptar / cerrar el aviso de cookies automáticamente si aparece
+            # 2. Aceptar el aviso de cookies de la página principal si aparece
             try:
-                btn_cookies = page.locator('button:has-text("Aceptar"), button:has-text("Entendido"), button:has-text("Acepto"), .cookies-btn, #cookies-aceptar').first
+                btn_cookies = page.locator('button:has-text("Aceptar"), button:has-text("Acepto")').first
                 if btn_cookies.is_visible(timeout=3000):
                     btn_cookies.click(force=True)
             except Exception:
                 pass
 
-            # 1. Seleccionar Empresa
+            # 3. Hacer clic en el enlace que lleva a la pasarela de pagos o navegar directo con el contexto ya creado
+            try:
+                link_pagos = page.locator('a[href*="pagosenlinea.grupovanti.com"]').first
+                if link_pagos.is_visible(timeout=3000):
+                    link_pagos.click(force=True)
+                    page.wait_for_url("**/pagosenlinea.grupovanti.com/**", timeout=10000)
+                else:
+                    page.goto("https://pagosenlinea.grupovanti.com/", wait_until="domcontentloaded", timeout=30000)
+            except Exception:
+                page.goto("https://pagosenlinea.grupovanti.com/", wait_until="domcontentloaded", timeout=30000)
+
+            # 4. Seleccionar Empresa
             select_elem = page.locator('select#empresa')
             select_elem.wait_for(state="visible", timeout=10000)
 
@@ -72,7 +81,7 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
                 if not selected:
                     raise Exception(f"No se encontró la empresa: '{val_str}'")
 
-            # 2. Ingresar Referencia
+            # 5. Ingresar Referencia
             input_elem = page.locator('input[formcontrolname="reference"], input[name="reference"]').first
             input_elem.wait_for(state="visible", timeout=5000)
             input_elem.click()
@@ -83,7 +92,7 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
             input_elem.dispatch_event("change")
             input_elem.dispatch_event("blur")
 
-            # 3. Seleccionar Bancolombia
+            # 6. Seleccionar Bancolombia
             label_bancolombia = page.locator('label[for="image2"], img[src*="bancolombia"]').first
             label_bancolombia.wait_for(state="visible", timeout=5000)
             
@@ -94,11 +103,11 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
 
             label_bancolombia.click(force=True)
 
-            # 4. Clic en Consultar
+            # 7. Clic en Consultar
             btn = page.locator('button.query-button').first
             btn.click(force=True)
 
-            # 5. Mapeo del Overlay (Saturación / Spinner amarillo)
+            # 8. Mapeo del Overlay (Saturación / Spinner amarillo)
             overlay_selector = 'ngx-spinner, .ngx-spinner-overlay, block-ui-spinner, .block-ui-wrapper, div:has-text("Cargando...")'
             
             try:
@@ -107,22 +116,22 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
             except Exception:
                 pass
 
-            # 6. Esperar el elemento de respuesta final en el DOM
+            # 9. Esperar el elemento de respuesta final en el DOM
             selector_resultado = 'label.disabled, #swal2-html-container, .swal2-popup'
             page.wait_for_selector(selector_resultado, state="visible", timeout=10000)
 
-            # 7. Evaluar Modal de Error SweetAlert2
+            # 10. Evaluar Modal de Error SweetAlert2
             swal_text = page.locator('#swal2-html-container').first
             if swal_text.count() > 0 and swal_text.is_visible():
                 mensaje_error = swal_text.inner_text().strip()
                 if mensaje_error:
-                    browser_context.close()
+                    browser.close()
                     return {
                         "success": False,
                         "message": mensaje_error
                     }
 
-            # 8. Extraer valor a pagar
+            # 11. Extraer valor a pagar
             monto = 0.0
             texto_monto = ""
             labels_disabled = page.locator('label.disabled').all()
@@ -159,7 +168,7 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
                     except ValueError:
                         pass
 
-            browser_context.close()
+            browser.close()
 
             if monto > 0:
                 return {
@@ -177,7 +186,7 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
 
         except Exception as e:
             try:
-                browser_context.close()
+                browser.close()
             except Exception:
                 pass
             return {
