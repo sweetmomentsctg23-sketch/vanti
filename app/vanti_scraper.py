@@ -4,8 +4,8 @@ import re
 import unicodedata
 from playwright.sync_api import sync_playwright
 
-# Ruta compatible con Linux en Render
-STATE_FILE = "state.json"
+# Directorio donde Render permite escribir datos persistentes o temporales
+USER_DATA_DIR = "/tmp/vanti_browser_profile"
 
 def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
     if not empresa or not referencia or str(empresa).strip() == "" or str(referencia).strip() == "":
@@ -15,30 +15,26 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
         }
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(
+        # Usamos launch_persistent_context para simular un navegador real con perfil propio
+        browser_context = p.chromium.launch_persistent_context(
+            user_data_dir=USER_DATA_DIR,
             headless=True,
             args=[
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage", # Vital en Render para evitar falta de memoria compartida
+                "--disable-dev-shm-usage",
                 "--disable-accelerated-2d-canvas",
                 "--disable-gpu",
                 "--disable-blink-features=AutomationControlled",
                 "--disable-features=IsolateOrigins,site-per-process,SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure",
                 "--allow-third-party-cookies"
-            ]
+            ],
+            viewport={"width": 1280, "height": 720},
+            ignore_https_errors=True,
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         )
 
-        context_kwargs = {
-            "viewport": {"width": 1280, "height": 720},
-            "ignore_https_errors": True,
-            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-        }
-        if os.path.exists(STATE_FILE):
-            context_kwargs["storage_state"] = STATE_FILE
-
-        context = browser.new_context(**context_kwargs)
-        page = context.new_page()
+        page = browser_context.new_page()
 
         page.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
@@ -120,7 +116,7 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
             if swal_text.count() > 0 and swal_text.is_visible():
                 mensaje_error = swal_text.inner_text().strip()
                 if mensaje_error:
-                    browser.close()
+                    browser_context.close()
                     return {
                         "success": False,
                         "message": mensaje_error
@@ -163,7 +159,7 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
                     except ValueError:
                         pass
 
-            browser.close()
+            browser_context.close()
 
             if monto > 0:
                 return {
@@ -181,7 +177,7 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
 
         except Exception as e:
             try:
-                browser.close()
+                browser_context.close()
             except Exception:
                 pass
             return {
