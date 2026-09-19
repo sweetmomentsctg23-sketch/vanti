@@ -12,7 +12,7 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
         }
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(
+        browser = p.firefox.launch(
             headless=True,
             args=[
                 "--no-sandbox",
