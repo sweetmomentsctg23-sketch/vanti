@@ -136,7 +136,7 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
 
             # 9. Esperar el elemento de respuesta final en el DOM
             selector_resultado = 'label.disabled, #swal2-html-container, .swal2-popup'
-            page.wait_for_selector(selector_resultado, state="visible", timeout=10000)
+            page.wait_for_selector(selector_resultado, state="visible", timeout=25000)
 
             # 10. Evaluar Modal de Error SweetAlert2
             swal_text = page.locator('#swal2-html-container').first
