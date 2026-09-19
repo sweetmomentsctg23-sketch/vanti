@@ -25,7 +25,11 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
                 # Bypasses clave anti-bot y de cookies
                 "--disable-blink-features=AutomationControlled",
                 "--disable-features=IsolateOrigins,site-per-process,SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure",
-                "--allow-third-party-cookies"
+                "--allow-third-party-cookies",
+                # NUEVOS: Forzar aceptación de cookies y almacenamiento sin restricciones en el contenedor
+                "--unsafely-treat-insecure-origin-as-secure=https://pagosenlinea.grupovanti.com",
+                "--cookie-session-only=false",
+                "--enable-features=NetworkService,NetworkServiceInProcess"
             ]
         )
 
