@@ -39,35 +39,45 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
         """)
 
         try:
-            # 1. Entrar primero a la página principal de Vanti (clave para evitar el bloqueo)
-            page.goto("https://www.grupovanti.com/", wait_until="domcontentloaded", timeout=30000)
+            # 1. Entrar a la página principal de Vanti
+            page.goto("https://www.grupovanti.com/", wait_until="domcontentloaded", timeout=45000)
 
-            # 2. Aceptar el aviso de cookies de la página principal si aparece
+            # 2. CONDICIÓN: Si aparece el primer modal/aviso inicial, cerrarlo cuando sea visible
             try:
-                btn_cookies = page.locator('button:has-text("Aceptar"), button:has-text("Acepto")').first
-                if btn_cookies.is_visible(timeout=3000):
+                btn_cerrar_modal = page.locator('button[aria-label="Cerrar modal"]').first
+                if btn_cerrar_modal.is_visible(timeout=4000):
+                    btn_cerrar_modal.click(force=True)
+            except Exception:
+                pass
+
+            # 3. CONDICIÓN: Si aparece el aviso de cookies, hacer clic en "Aceptar" cuando sea visible
+            try:
+                # Buscamos el botón de aceptar cookies exactamente con la estructura que descubriste
+                btn_cookies = page.locator('button.button.button-outline:has-text("Aceptar"), button:has-text("Aceptar")').first
+                if btn_cookies.is_visible(timeout=4000):
                     btn_cookies.click(force=True)
             except Exception:
                 pass
 
-            # 3. Hacer clic en el enlace que lleva a la pasarela de pagos o navegar directo con el contexto ya creado
+            # 4. CONDICIÓN: Hacer clic en el enlace/botón que lleva a la pasarela de pagos cuando esté disponible
             try:
                 link_pagos = page.locator('a[href*="pagosenlinea.grupovanti.com"]').first
-                if link_pagos.is_visible(timeout=3000):
+                if link_pagos.is_visible(timeout=5000):
                     link_pagos.click(force=True)
-                    page.wait_for_url("**/pagosenlinea.grupovanti.com/**", timeout=10000)
+                    # Esperar a que la URL cambie efectivamente a la pasarela
+                    page.wait_for_url("**/pagosenlinea.grupovanti.com/**", timeout=20000)
                 else:
-                    page.goto("https://pagosenlinea.grupovanti.com/", wait_until="domcontentloaded", timeout=30000)
+                    page.goto("https://pagosenlinea.grupovanti.com/", wait_until="domcontentloaded", timeout=45000)
             except Exception:
-                page.goto("https://pagosenlinea.grupovanti.com/", wait_until="domcontentloaded", timeout=30000)
+                page.goto("https://pagosenlinea.grupovanti.com/", wait_until="domcontentloaded", timeout=45000)
 
-            # 4. Seleccionar Empresa
+            # 5. CONDICIÓN: Esperar a que el selector de empresa esté visible en la pasarela
             select_elem = page.locator('select#empresa')
-            select_elem.wait_for(state="visible", timeout=10000)
+            select_elem.wait_for(state="visible", timeout=20000)
 
             val_str = str(empresa).strip()
             try:
-                select_elem.select_option(value=val_str, timeout=3000)
+                select_elem.select_option(value=val_str, timeout=5000)
             except Exception:
                 options = select_elem.locator('option').all()
                 selected = False
@@ -81,9 +91,9 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
                 if not selected:
                     raise Exception(f"No se encontró la empresa: '{val_str}'")
 
-            # 5. Ingresar Referencia
+            # 6. Ingresar Referencia de forma segura
             input_elem = page.locator('input[formcontrolname="reference"], input[name="reference"]').first
-            input_elem.wait_for(state="visible", timeout=5000)
+            input_elem.wait_for(state="visible", timeout=10000)
             input_elem.click()
             input_elem.fill("")
             input_elem.press_sequentially(str(referencia), delay=30)
@@ -92,35 +102,34 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
             input_elem.dispatch_event("change")
             input_elem.dispatch_event("blur")
 
-            # 6. Seleccionar Bancolombia
+            # 7. Seleccionar Bancolombia cuando aparezca y no esté disabled
             label_bancolombia = page.locator('label[for="image2"], img[src*="bancolombia"]').first
-            label_bancolombia.wait_for(state="visible", timeout=5000)
+            label_bancolombia.wait_for(state="visible", timeout=10000)
             
             try:
-                page.wait_for_selector('input#image2[value="122"]:not([disabled])', timeout=3000)
+                page.wait_for_selector('input#image2[value="122"]:not([disabled])', timeout=5000)
             except Exception:
                 pass
 
             label_bancolombia.click(force=True)
 
-            # 7. Clic en Consultar
+            # 8. Clic en Consultar
             btn = page.locator('button.query-button').first
             btn.click(force=True)
 
-            # 8. Mapeo del Overlay (Saturación / Spinner amarillo)
+            # 9. CONDICIÓN DE CARGA: Esperar a que aparezca el spinner de carga (si sale) y luego esperar a que desaparezca
             overlay_selector = 'ngx-spinner, .ngx-spinner-overlay, block-ui-spinner, .block-ui-wrapper, div:has-text("Cargando...")'
-            
             try:
-                page.wait_for_selector(overlay_selector, state="visible", timeout=1500)
-                page.wait_for_selector(overlay_selector, state="hidden", timeout=12000)
+                page.wait_for_selector(overlay_selector, state="visible", timeout=2000)
+                page.wait_for_selector(overlay_selector, state="hidden", timeout=25000)
             except Exception:
                 pass
 
-            # 9. Esperar el elemento de respuesta final en el DOM
+            # 10. CONDICIÓN DE RESPUESTA: Esperar a que aparezca en pantalla CUALQUIER elemento que indique fin de proceso (Error o Resultado)
             selector_resultado = 'label.disabled, #swal2-html-container, .swal2-popup'
-            page.wait_for_selector(selector_resultado, state="visible", timeout=10000)
+            page.wait_for_selector(selector_resultado, state="visible", timeout=25000)
 
-            # 10. Evaluar Modal de Error SweetAlert2
+            # 11. Evaluar si salió un Modal de Error (SweetAlert2)
             swal_text = page.locator('#swal2-html-container').first
             if swal_text.count() > 0 and swal_text.is_visible():
                 mensaje_error = swal_text.inner_text().strip()
@@ -131,7 +140,7 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
                         "message": mensaje_error
                     }
 
-            # 11. Extraer valor a pagar
+            # 12. Extraer valor a pagar del DOM
             monto = 0.0
             texto_monto = ""
             labels_disabled = page.locator('label.disabled').all()
