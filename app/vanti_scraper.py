@@ -1,11 +1,11 @@
+import asyncio
 import os
 import re
 import unicodedata
-import asyncio
 from playwright.sync_api import sync_playwright
 
-DATA_DIR = r"C:\vanti_chrome_data"
-STATE_FILE = os.path.join(DATA_DIR, "state.json")
+# Ruta compatible con Linux en Render
+STATE_FILE = "state.json"
 
 def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
     if not empresa or not referencia or str(empresa).strip() == "" or str(referencia).strip() == "":
@@ -14,20 +14,19 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
             "message": "La empresa y la referencia son obligatorias para realizar la consulta."
         }
 
- with sync_playwright() as p:
+    with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=True,
             args=[
                 "--no-sandbox",
-                "--disable-setuid-sandbox", # <-- Falta este para entornos Linux sin root
-                "--disable-dev-shm-usage",  # <-- ¡Vital! Evita que falle por falta de memoria compartida (/dev/shm) en Render
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage", # Vital en Render para evitar falta de memoria compartida
                 "--disable-accelerated-2d-canvas",
                 "--disable-gpu",
                 "--disable-blink-features=AutomationControlled",
                 "--disable-features=IsolateOrigins,site-per-process,SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure",
                 "--allow-third-party-cookies"
             ]
-        )
         )
 
         context_kwargs = {
@@ -96,17 +95,15 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
             btn.click(force=True)
 
             # 5. Mapeo del Overlay (Saturación / Spinner amarillo)
-            # Incluye las etiquetas típicas de Angular/ngx-spinner/block-ui
             overlay_selector = 'ngx-spinner, .ngx-spinner-overlay, block-ui-spinner, .block-ui-wrapper, div:has-text("Cargando...")'
             
-            # Si aparece el overlay, esperamos a que se oculte
             try:
                 page.wait_for_selector(overlay_selector, state="visible", timeout=1500)
                 page.wait_for_selector(overlay_selector, state="hidden", timeout=12000)
             except Exception:
                 pass
 
-            # 6. Esperar el elemento de respuesta final en el DOM (Garantiza que no cierre la ventana antes)
+            # 6. Esperar el elemento de respuesta final en el DOM
             selector_resultado = 'label.disabled, #swal2-html-container, .swal2-popup'
             page.wait_for_selector(selector_resultado, state="visible", timeout=10000)
 
