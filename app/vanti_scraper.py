@@ -14,15 +14,20 @@ def _consultar_factura_vanti_sync(empresa: str, referencia: str) -> dict:
             "message": "La empresa y la referencia son obligatorias para realizar la consulta."
         }
 
-    with sync_playwright() as p:
+ with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=True,
             args=[
                 "--no-sandbox",
+                "--disable-setuid-sandbox", # <-- Falta este para entornos Linux sin root
+                "--disable-dev-shm-usage",  # <-- ¡Vital! Evita que falle por falta de memoria compartida (/dev/shm) en Render
+                "--disable-accelerated-2d-canvas",
+                "--disable-gpu",
                 "--disable-blink-features=AutomationControlled",
                 "--disable-features=IsolateOrigins,site-per-process,SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure",
                 "--allow-third-party-cookies"
             ]
+        )
         )
 
         context_kwargs = {
