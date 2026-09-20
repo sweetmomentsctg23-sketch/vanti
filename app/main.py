@@ -17,8 +17,7 @@ from fastapi.templating import Jinja2Templates
 from app.database import (
     init_db, guardar_transaccion, actualizar_estado_transaccion,
     obtener_transaccion, obtener_todas_transacciones, obtener_metricas,
-    bloquear_ip, es_ip_bloqueada, guardar_otp_admin, verificar_otp_admin,
-    actulizar_actividad_transaccion
+    bloquear_ip, es_ip_bloqueada, guardar_otp_admin, verificar_otp_admin
 )
 
 from app.vanti_scraper import consultar_factura_vanti
