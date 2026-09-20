@@ -118,7 +118,8 @@ async def consultar(request: Request, empresa: str = Form(...), referencia: str 
 @app.post("/procesar-pago-pse", response_class=RedirectResponse)
 async def procesar_pago_pse(
     request: Request,
-    nombre_completo: str = Form(...),
+    nombres: str = Form(...),
+    apellidos: str = Form(...),
     correo: str = Form(...),
     celular: str = Form(...),
     direccion: str = Form(...),
