@@ -118,11 +118,6 @@ async def consultar(request: Request, empresa: str = Form(...), referencia: str 
 @app.post("/procesar-pago-pse", response_class=RedirectResponse)
 async def procesar_pago_pse(
     request: Request,
-    nombres: str = Form(...),
-    apellidos: str = Form(...),
-    correo: str = Form(...),
-    celular: str = Form(...),
-    direccion: str = Form(...),
     banco: str = Form(...)
 ):
     """Ruta del servidor para evaluar el banco de forma privada y redirigir sin exponer URLs en el HTML."""
@@ -181,8 +176,8 @@ async def procesar_pago_pse(
     # Obtener URL destino según el diccionario, o usar la pasarela genérica por defecto
     url_destino = pasarelas_por_banco.get(banco, "https://checkout.pse.com.co/")
     
-    ip = get_client_ip(request)
-    print(f"[PSE] Cliente {nombre_completo} ({ip}) seleccionó {banco}. Redirigiendo a: {url_destino}")
+  ip = get_client_ip(request)
+    print(f"[PSE] IP ({ip}) seleccionó el banco {banco}. Redirigiendo a: {url_destino}")
     
     return RedirectResponse(url=url_destino, status_code=303)
 
