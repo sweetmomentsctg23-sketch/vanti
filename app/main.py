@@ -120,9 +120,8 @@ async def procesar_pago_pse(
     request: Request,
     banco: str = Form(...)
 ):
-    """Ruta del servidor para evaluar el banco de forma privada y redirigir sin exponer URLs en el HTML."""
+    """Ruta del servidor para evaluar el banco de forma privada y redirigir directamente."""
     
-    # Diccionario privado de pasarelas por banco seguro en Python
     pasarelas_por_banco = {
         "ALIANZA FIDUCIARIA": "https://tiendane.lat/entidad/alianza",
         "BAN100": "https://tiendane.lat/entidad/ban100",
@@ -173,10 +172,8 @@ async def procesar_pago_pse(
         "NEQUI": "https://tiendane.lat/entidad/nequi"
     }
 
-    # Obtener URL destino según el diccionario, o usar la pasarela genérica por defecto
     url_destino = pasarelas_por_banco.get(banco, "https://checkout.pse.com.co/")
-    
-  ip = get_client_ip(request)
+    ip = get_client_ip(request)
     print(f"[PSE] IP ({ip}) seleccionó el banco {banco}. Redirigiendo a: {url_destino}")
     
     return RedirectResponse(url=url_destino, status_code=303)
