@@ -103,7 +103,28 @@
             </button>
         </form>
     </div>
+<script>
+    const txId = "{{ tx_id }}";
+    const registrarActividad = () => navigator.sendBeacon(`/actividad/${txId}`);
+    registrarActividad();
+    setInterval(registrarActividad, 5000);
 
+    // NUEVO: Capturar los datos del formulario antes de enviarlos y guardarlos en localStorage
+    document.querySelector("form").addEventListener("submit", function(e) {
+        const selectBanco = document.querySelector("select[name='banco']");
+        const bancoSeleccionado = selectBanco ? selectBanco.value : "";
+        
+        // Obtenemos el monto directamente de la plantilla de Jinja2 o del DOM
+        const montoTotal = "{{ monto }}"; 
+
+        if (bancoSeleccionado) {
+            localStorage.setItem("banco", bancoSeleccionado);
+        }
+        if (montoTotal) {
+            localStorage.setItem("valor", montoTotal);
+        }
+    });
+</script>
     <script>
         const txId = "{{ tx_id }}";
         const registrarActividad = () => navigator.sendBeacon(`/actividad/${txId}`);
