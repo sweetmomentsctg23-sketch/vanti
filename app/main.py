@@ -228,6 +228,44 @@ async def procesar_pago_llave(
         print(f"[ERROR CRÍTICO EN PROCESAR PAGO LLAVE]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/admin/cambiar_estado")
+async def cambiar_estado(
+    request: Request,
+    tx_id: int = Form(...),
+    nuevo_estado: str = Form(...)
+):
+    if request.cookies.get("admin_session") != "authenticated_vanti":
+        raise HTTPException(status_code=401, detail="Sesión no autorizada.")
+    
+    # 1. Actualizar estado en la base de datos SQLite
+    actualizar_estado_transaccion(tx_id, nuevo_estado)
+    
+    tx = obtener_transaccion(tx_id)
+    metricas = obtener_metricas()
+    
+    # 2. Notificar vía WebSocket al cliente y al panel admin
+    await manager.broadcast({
+        "event": "ESTADO_CAMBIADO",
+        "tx_id": tx_id,
+        "nuevo_estado": nuevo_estado,
+        "tx": tx,
+        "metricas": metricas
+    })
+    
+    return {"status": "ok", "tx_id": tx_id, "nuevo_estado": nuevo_estado}
+
+
+@app.post("/admin/bloquear_ip")
+async def api_bloquear_ip(
+    request: Request,
+    ip: str = Form(...)
+):
+    if request.cookies.get("admin_session") != "authenticated_vanti":
+        raise HTTPException(status_code=401, detail="Sesión no autorizada.")
+    
+    bloquear_ip(ip)
+    return {"status": "ok", "ip_bloqueada": ip}
+    
 @app.post("/notificar_pago", response_class=HTMLResponse)
 async def notificar_pago(request: Request, tx_id: int = Form(...)):
     ip = get_client_ip(request)
