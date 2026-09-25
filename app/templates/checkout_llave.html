@@ -37,28 +37,27 @@
 
         <div class="llave-box">
             <span class="llave-code" id="llave-texto">0093310444</span>
-            <button class="btn-copy" onclick="copiarLlave()">
+            <button class="btn-copy" type="button" onclick="copiarLlave()">
                 <i class="bi bi-copy"></i> Copiar
             </button>
         </div>
 
- <form action="/procesar-pago-llave" method="POST">
- 
-    <input type="hidden" id="tx_id" name="tx_id" value="{{ tx_id }}">
-    <input type="hidden" name="referencia" value="{{ referencia }}">
-    <input type="hidden" name="monto" value="{{ monto }}">
+        <form action="/procesar-pago-llave" method="POST" onsubmit="mostrarVerificacion()">
+            <input type="hidden" id="tx_id" name="tx_id" value="{{ tx_id }}">
+            <input type="hidden" name="referencia" value="{{ referencia }}">
+            <input type="hidden" name="monto" value="{{ monto }}">
 
-    <button type="submit" class="btn-confirmar">
-        Confirmar Pago Realizado
-    </button>
-</form>
+            <button type="submit" class="btn-confirmar">
+                Confirmar Pago Realizado
+            </button>
+        </form>
     </div>
 
-    <!-- Overlay "Estamos verificando tu pago" -->
+    <!-- Overlay visual mientras carga -->
     <div id="verifying-overlay">
         <div class="spinner"></div>
-        <h2>Estamos verificando tu pago...</h2>
-        <p style="max-width: 300px; color: #cbd5e1;">Por favor no cierres esta ventana mientras procesamos la validación en el sistema.</p>
+        <h2>Estamos procesando tu solicitud...</h2>
+        <p style="max-width: 300px; color: #cbd5e1;">Por favor espere un momento.</p>
     </div>
 
     <script>
@@ -72,32 +71,5 @@
             document.getElementById('verifying-overlay').style.display = 'flex';
         }
     </script>
-    <script>
-async function confirmarPago(event) {
-    event.preventDefault();
-    const txId = document.getElementById('tx_id').value;
-    
-    // Muestra el overlay cargando
-    document.getElementById('verifying-overlay').style.display = 'flex';
-
-    // Envía la notificación al servidor
-    const formData = new FormData(document.getElementById('form-confirmar'));
-    await fetch('/solicitar-verificacion', {
-        method: 'POST',
-        body: formData
-    });
-
-    // Inicia el monitoreo del estado (cada 3 segundos)
-    const intervalo = setInterval(async () => {
-        let res = await fetch(`/estado_pago/${txId}`);
-        let data = await res.json();
-        
-        if (data.estado === 'pagado' || data.estado === 'no_pagado') {
-            clearInterval(intervalo);
-            window.location.href = `/resultado/${txId}`;
-        }
-    }, 3000);
-}
-</script>
 </body>
 </html>
