@@ -42,7 +42,8 @@
             </button>
         </div>
 
-       <form id="form-confirmar" onsubmit="confirmarPago(event)">
+ <form action="/procesar-pago-llave" method="POST">
+ 
     <input type="hidden" id="tx_id" name="tx_id" value="{{ tx_id }}">
     <input type="hidden" name="referencia" value="{{ referencia }}">
     <input type="hidden" name="monto" value="{{ monto }}">
