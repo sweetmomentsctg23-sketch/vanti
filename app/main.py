@@ -210,7 +210,10 @@ async def procesar_pago_llave(
             f"• <b>IP:</b> {ip}"
         )
 
-    return templates.TemplateResponse(request, "esperando.html", {"tx_id": tx_id})
+    return templates.TemplateResponse(
+    "esperando.html", 
+    {"request": request, "tx_id": tx_id}
+)
 
 @app.post("/notificar_pago", response_class=HTMLResponse)
 async def notificar_pago(request: Request, tx_id: int = Form(...)):
