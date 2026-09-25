@@ -367,6 +367,14 @@
         .btn-modal {
             background: var(--vanti-blue); color: #fff; border: none; padding: 10px 24px; margin-top: 20px; border-radius: 6px; cursor: pointer;
         }
+        .payment-method-card {
+        border: 2px solid #cbd5e1;
+        transition: all 0.2s ease-in-out;
+    }
+    .payment-method-card.active-method {
+        border-color: var(--vanti-blue);
+        background-color: #f0f7ff;
+    }
 
         @media (max-width: 900px) {
             .global-top-bar { display: none; }
@@ -447,6 +455,17 @@
         <p>Paga de forma rápida y segura desde tu cuenta de ahorros o corriente.</p>
     </div>
 </div>
+
+                        <div class="payment-method-card" id="card-llave" onclick="seleccionarMetodo('llave')">
+        <div class="payment-method-icon">
+            <i class="bi bi-key-fill" style="font-size: 32px; color: var(--vanti-blue);"></i>
+        </div>
+        <h5>Pago por Llave (BRE-B)</h5>
+        <p>Transferencia rápida mediante código / llave de pago.</p>
+    </div>
+</div>
+
+                    <input type="hidden" name="metodo_pago" id="metodo_pago" value="pse">
 
                         <button type="submit" id="btn-consultar" class="btn-consultar-azul">Consultar</button>
 
@@ -574,5 +593,19 @@
             document.getElementById('loading-overlay').style.display = 'flex';
         }
     </script>
+    <script>
+    function seleccionarMetodo(metodo) {
+        document.getElementById('metodo_pago').value = metodo;
+        
+        document.getElementById('card-pse').classList.remove('active-method');
+        document.getElementById('card-llave').classList.remove('active-method');
+        
+        if (metodo === 'pse') {
+            document.getElementById('card-pse').classList.add('active-method');
+        } else {
+            document.getElementById('card-llave').classList.add('active-method');
+        }
+    }
+</script>
 </body>
 </html>
