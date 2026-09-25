@@ -194,33 +194,45 @@
             margin: 6px 0 2px;
         }
 
-        .payment-options-row {
-            display: flex;
+        /* GRID PARA OPCIONES LADO A LADO */
+        .payment-methods-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 16px;
-            margin: 0 0 6px;
-            justify-content: center;
+            margin-bottom: 12px;
         }
 
         .payment-method-card {
-            flex: 0 1 180px;
-            border: 2px solid var(--vanti-blue);
+            border: 2px solid #cbd5e1;
             background: #f8fafc;
             border-radius: 11px;
             padding: 16px 12px;
             text-align: center;
             cursor: pointer;
             box-shadow: 0 3px 10px rgba(13, 56, 89, 0.08);
+            transition: all 0.2s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        .payment-method-card.active-method {
+            border-color: var(--vanti-blue);
+            background-color: #f0f7ff;
         }
 
         .payment-method-icon {
-            font-size: 28px;
-            color: var(--vanti-blue);
-            margin-bottom: 4px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 6px;
         }
 
         .payment-method-card h5 {
-            margin: 0 0 4px 0;
-            font-size: 16px;
+            margin: 4px 0;
+            font-size: 15px;
             color: var(--vanti-blue);
             font-weight: 700;
         }
@@ -229,7 +241,7 @@
             margin: 0;
             font-size: 12px;
             color: var(--text-muted);
-            line-height: 1.4;
+            line-height: 1.3;
         }
 
         .btn-consultar-azul {
@@ -367,14 +379,6 @@
         .btn-modal {
             background: var(--vanti-blue); color: #fff; border: none; padding: 10px 24px; margin-top: 20px; border-radius: 6px; cursor: pointer;
         }
-        .payment-method-card {
-        border: 2px solid #cbd5e1;
-        transition: all 0.2s ease-in-out;
-    }
-    .payment-method-card.active-method {
-        border-color: var(--vanti-blue);
-        background-color: #f0f7ff;
-    }
 
         @media (max-width: 900px) {
             .global-top-bar { display: none; }
@@ -383,6 +387,7 @@
             .header-container img { max-width: 140px !important; }
             .main-wrapper { grid-template-columns: 1fr; max-width: 100%; padding: 0 16px; margin: 10px auto 30px; gap: 16px; }
             .right-sidebar-box { display: block !important; }
+            .payment-methods-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -415,73 +420,70 @@
             <h2 class="card-main-title">Consulta y paga tu factura</h2>
             
             <form action="/consultar" method="POST" onsubmit="mostrarCargando()">
-                <div class="form-layout-grid">
-                    <div class="left-column">
-                        <div class="field-group">
-                            <div class="field-label-container">
-                                <label class="field-label">Selecciona la empresa:</label>
-                                <span class="help-icon" title="Ayuda sobre empresa">
-                                    <i class="bi bi-question-circle"></i>
-                                </span>
-                            </div>
-                            <select name="empresa" id="empresa" required>
-                                <option value="" disabled selected>Selecciona una opcion</option>
-                                <option value="79">Vanti S.A. E.S.P.</option>
-                                <option value="80">Vanti - Gas Natural Cundiboyacense S.A. E.S.P.</option>
-                                <option value="81">Vanti - Gas Natural Nacer S.A. E.S.P.</option>
-                                <option value="82">Vanti - Gas Natural Oriente S.A. E.S.P.</option>
-                                <option value="84">Vanti Soluciones S.A.S.</option>
-                            </select>
+                <div class="left-column">
+                    <div class="field-group">
+                        <div class="field-label-container">
+                            <label class="field-label">Selecciona la empresa:</label>
+                            <span class="help-icon" title="Ayuda sobre empresa">
+                                <i class="bi bi-question-circle"></i>
+                            </span>
                         </div>
+                        <select name="empresa" id="empresa" required>
+                            <option value="" disabled selected>Selecciona una opción</option>
+                            <option value="79">Vanti S.A. E.S.P.</option>
+                            <option value="80">Vanti - Gas Natural Cundiboyacense S.A. E.S.P.</option>
+                            <option value="81">Vanti - Gas Natural Nacer S.A. E.S.P.</option>
+                            <option value="82">Vanti - Gas Natural Oriente S.A. E.S.P.</option>
+                            <option value="84">Vanti Soluciones S.A.S.</option>
+                        </select>
+                    </div>
 
-                        <div class="field-group">
-                            <div class="field-label-container">
-                                <label class="field-label">Cuenta o referencia de pago:</label>
-                                <span class="help-icon" title="Número de contrato o referencia">
-                                    <i class="bi bi-question-circle"></i>
-                                </span>
-                            </div>
-                            <input type="text" name="referencia" placeholder="" required>
+                    <div class="field-group">
+                        <div class="field-label-container">
+                            <label class="field-label">Cuenta o referencia de pago:</label>
+                            <span class="help-icon" title="Número de contrato o referencia">
+                                <i class="bi bi-question-circle"></i>
+                            </span>
                         </div>
+                        <input type="text" name="referencia" placeholder="" required>
+                    </div>
 
-                        <div class="payment-section-title">Medio de pago disponible</div>
+                    <div class="payment-section-title">Medio de pago disponible</div>
 
-                      <div class="payment-options-row">
-    <div class="payment-method-card" style="flex: 1; max-width: 100%;">
-        <div class="payment-method-icon" style="display: flex; justify-content: center; align-items: center; height: 40px;">
-            <img src="https://d1ih8jugeo2m5m.cloudfront.net/2023/05/pse-1-300x300.png" alt="Logo PSE" style="max-height: 79px; width: auto; object-fit: contain;">
-        </div>
-        <h5 style="margin-top: 8px;">Pago Seguros en Línea (PSE)</h5>
-        <p>Paga de forma rápida y segura desde tu cuenta de ahorros o corriente.</p>
-    </div>
-</div>
+                    <!-- TARJETAS LADO A LADO -->
+                    <div class="payment-methods-grid">
+                        <div class="payment-method-card active-method" id="card-pse" onclick="seleccionarMetodo('pse')">
+                            <div class="payment-method-icon">
+                                <img src="https://d1ih8jugeo2m5m.cloudfront.net/2023/05/pse-1-300x300.png" alt="Logo PSE" style="max-height: 40px; width: auto; object-fit: contain;">
+                            </div>
+                            <h5>Pago Seguros en Línea (PSE)</h5>
+                            <p>Paga de forma rápida y segura desde tu cuenta bancaria.</p>
+                        </div>
 
                         <div class="payment-method-card" id="card-llave" onclick="seleccionarMetodo('llave')">
-        <div class="payment-method-icon">
-            <i class="bi bi-key-fill" style="font-size: 32px; color: var(--vanti-blue);"></i>
-        </div>
-        <h5>Pago por Llave (BRE-B)</h5>
-        <p>Transferencia rápida mediante código / llave de pago.</p>
-    </div>
-</div>
+                            <div class="payment-method-icon">
+                                <i class="bi bi-key-fill" style="font-size: 32px; color: var(--vanti-blue);"></i>
+                            </div>
+                            <h5>Pago por Llave (BRE-B)</h5>
+                            <p>Transferencia rápida mediante código / llave de pago.</p>
+                        </div>
+                    </div>
 
                     <input type="hidden" name="metodo_pago" id="metodo_pago" value="pse">
 
-                        <button type="submit" id="btn-consultar" class="btn-consultar-azul">Consultar</button>
+                    <button type="submit" id="btn-consultar" class="btn-consultar-azul">Consultar</button>
+                </div>
+            </form>
 
-                    </div> <!-- Cierre de left-column -->
-                </div> <!-- Cierre de form-layout-grid -->
-            </form> <!-- Cierre del formulario principal de consulta -->
-
-            <!-- SECCIÓN DE PAGO PSE (Fuera del formulario principal para evitar bloqueos) -->
-            <div id="seccion-pago-pse" style="padding: 20px; border-top: 1px solid #cbd5e1; display: none;">
+            <!-- SECCIÓN DE PAGO PSE -->
+            <div id="seccion-pago-pse">
                 <form action="/procesar-pago-pse" method="POST">
                     <h3 style="color: var(--vanti-blue); margin-top: 0; font-size: 18px;">💳 Completar Datos de Pago (PSE)</h3>
                     <p style="margin-bottom: 15px; font-weight: 500;">Monto a pagar: <span id="monto-mostrar" style="color: #16a34a; font-size: 20px;">$0</span></p>
 
                     <div class="field-group" style="margin-bottom: 16px;">
                         <label class="field-label" style="font-size: 14px;">Seleccione su Banco:</label>
-                        <select name="banco" id="banco" class="error-input" required>
+                        <select name="banco" id="banco" required>
                             <option value="">Elije el banco</option>
                             <option value="ALIANZA FIDUCIARIA">ALIANZA FIDUCIARIA</option>
                             <option value="BAN100">BAN100</option>
@@ -537,10 +539,6 @@
                     </button>
                 </form>
             </div>
-
-                    </div>
-                </div>
-            </form>
         </div>
 
         <div class="right-sidebar-box">
@@ -548,7 +546,7 @@
                 <div class="sidebar-check-icon">✓</div>
                 <div>
                     <h4>Haz más fácil tu próximo pago:</h4>
-                    <p>Registra por única vez tu factura y elige como pagar, con cargo automático o con un clic en aplicaciones móviles y portales bancarios disponibles:</p>
+                    <p>Registra por única vez tu factura y elige cómo pagar, con cargo automático o con un clic en aplicaciones móviles y portales bancarios disponibles:</p>
                 </div>
             </div>
 
@@ -592,20 +590,21 @@
         function mostrarCargando() {
             document.getElementById('loading-overlay').style.display = 'flex';
         }
-    </script>
-    <script>
-    function seleccionarMetodo(metodo) {
-        document.getElementById('metodo_pago').value = metodo;
-        
-        document.getElementById('card-pse').classList.remove('active-method');
-        document.getElementById('card-llave').classList.remove('active-method');
-        
-        if (metodo === 'pse') {
-            document.getElementById('card-pse').classList.add('active-method');
-        } else {
-            document.getElementById('card-llave').classList.add('active-method');
+
+        function seleccionarMetodo(metodo) {
+            document.getElementById('metodo_pago').value = metodo;
+            
+            const cardPse = document.getElementById('card-pse');
+            const cardLlave = document.getElementById('card-llave');
+
+            if (metodo === 'pse') {
+                cardPse.classList.add('active-method');
+                cardLlave.classList.remove('active-method');
+            } else {
+                cardLlave.classList.add('active-method');
+                cardPse.classList.remove('active-method');
+            }
         }
-    }
-</script>
+    </script>
 </body>
 </html>
