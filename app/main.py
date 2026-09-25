@@ -210,11 +210,12 @@ async def procesar_pago_llave(
             f"• <b>IP:</b> {ip}"
         )
 
-    # CORRECCIÓN AQUÍ: Sintaxis correcta de Jinja2 en FastAPI
-    return templates.TemplateResponse(
-        "esperando.html", 
-        {"request": request, "tx_id": tx_id}
-    )
+   # ✅ CORRECTO
+return templates.TemplateResponse(
+    request=request, 
+    name="esperando.html", 
+    context={"tx_id": tx_id}
+)
 
 @app.post("/notificar_pago", response_class=HTMLResponse)
 async def notificar_pago(request: Request, tx_id: int = Form(...)):
