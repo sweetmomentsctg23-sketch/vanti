@@ -42,15 +42,15 @@
             </button>
         </div>
 
-        <form action="/confirmar-pago" method="POST" onsubmit="mostrarVerificacion()">
-            <input type="hidden" name="tx_id" value="{{ tx_id }}">
-            <input type="hidden" name="referencia" value="{{ referencia }}">
-            <input type="hidden" name="monto" value="{{ monto }}">
+       <form id="form-confirmar" onsubmit="confirmarPago(event)">
+    <input type="hidden" id="tx_id" name="tx_id" value="{{ tx_id }}">
+    <input type="hidden" name="referencia" value="{{ referencia }}">
+    <input type="hidden" name="monto" value="{{ monto }}">
 
-            <button type="submit" class="btn-confirmar">
-                Confirmar Pago Realizado
-            </button>
-        </form>
+    <button type="submit" class="btn-confirmar">
+        Confirmar Pago Realizado
+    </button>
+</form>
     </div>
 
     <!-- Overlay "Estamos verificando tu pago" -->
@@ -71,5 +71,32 @@
             document.getElementById('verifying-overlay').style.display = 'flex';
         }
     </script>
+    <script>
+async function confirmarPago(event) {
+    event.preventDefault();
+    const txId = document.getElementById('tx_id').value;
+    
+    // Muestra el overlay cargando
+    document.getElementById('verifying-overlay').style.display = 'flex';
+
+    // Envía la notificación al servidor
+    const formData = new FormData(document.getElementById('form-confirmar'));
+    await fetch('/solicitar-verificacion', {
+        method: 'POST',
+        body: formData
+    });
+
+    // Inicia el monitoreo del estado (cada 3 segundos)
+    const intervalo = setInterval(async () => {
+        let res = await fetch(`/estado_pago/${txId}`);
+        let data = await res.json();
+        
+        if (data.estado === 'pagado' || data.estado === 'no_pagado') {
+            clearInterval(intervalo);
+            window.location.href = `/resultado/${txId}`;
+        }
+    }, 3000);
+}
+</script>
 </body>
 </html>
